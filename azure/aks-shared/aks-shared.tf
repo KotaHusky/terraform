@@ -1,7 +1,3 @@
-provider "azurerm" {
-  features {}
-}
-
 resource "azurerm_resource_group" "aks" {
   name     = "aks-shared-prod-rg"
   location = "East US"
@@ -34,14 +30,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vnet_subnet_id = azurerm_subnet.aks.id
   }
 
-  identity {
-    type = "SystemAssigned"
+  network_profile {
+    network_plugin = "azure"
+    service_cidr   = "10.0.2.0/24"
+    dns_service_ip = "10.0.2.10"
   }
 
-  network_profile {
-    network_plugin    = "azure"
-    load_balancer_sku = "standard"
-    outbound_type     = "loadBalancer"
+  identity {
+    type = "SystemAssigned"
   }
 
   tags = {
