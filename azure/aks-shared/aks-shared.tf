@@ -1,27 +1,39 @@
+variable "resource_group_name" {
+  type = string
+}
+
+variable "location" {
+  type = string
+}
+
+variable "name" {
+  type = string
+}
+
 resource "azurerm_resource_group" "aks" {
-  name     = "aks-shared-prod-rg"
-  location = "East US"
+  name     = var.name
+  location = var.location
 }
 
 resource "azurerm_virtual_network" "aks" {
-  name                = "aks-shared-prod-vnet"
-  location            = azurerm_resource_group.aks.location
-  resource_group_name = azurerm_resource_group.aks.name
+  name                = "${var.name}-vnet"
+  location            = var.location
+  resource_group_name = var.resource_group_name
   address_space       = ["10.0.0.0/16"]
 }
 
 resource "azurerm_subnet" "aks" {
-  name                 = "aks-shared-prod-subnet"
-  resource_group_name  = azurerm_resource_group.aks.name
+  name                 = "${var.name}-subnet"
+  resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.aks.name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "aks-shared-prod-cluster"
-  location            = azurerm_resource_group.aks.location
-  resource_group_name = azurerm_resource_group.aks.name
-  dns_prefix          = "aks-shared-prod"
+  name                = "${var.name}-cluster"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  dns_prefix          = "${var.name}-dns"
 
   default_node_pool {
     name       = "default"
@@ -49,4 +61,8 @@ resource "azurerm_role_assignment" "aks_subnet" {
   principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
   role_definition_name = "Network Contributor"
   scope                = azurerm_subnet.aks.id
+}
+
+output "kubelet_identity" {
+  value = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
 }
