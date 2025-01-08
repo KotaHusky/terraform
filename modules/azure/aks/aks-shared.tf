@@ -10,6 +10,11 @@ variable "name" {
   type = string
 }
 
+variable "admin_group_object_id" {
+  description = "The object ID of the Azure AD group that will have admin access to the AKS cluster"
+  type        = string
+}
+
 resource "azurerm_resource_group" "aks" {
   name     = var.name
   location = var.location
@@ -38,7 +43,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   default_node_pool {
     name       = "default"
     node_count = 1
-    vm_size    = "Standard_B2s" # Smallest VM size for cost-efficiency
+    vm_size    = "Standard_B2s"
     vnet_subnet_id = azurerm_subnet.aks.id
   }
 
@@ -52,6 +57,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
     type = "SystemAssigned"
   }
 
+  role_based_access_control {
+    enabled = true
+    azure_active_directory {
+      managed = true
+      admin_group_object_ids = [var.admin_group_object_id]
+    }
+  }
+
   tags = {
     environment = "production"
   }
@@ -61,6 +74,14 @@ resource "azurerm_role_assignment" "aks_subnet" {
   principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
   role_definition_name = "Network Contributor"
   scope                = azurerm_subnet.aks.id
+}
+
+output "kube_config" {
+  value = azurerm_kubernetes_cluster.aks.kube_config[0]
+}
+
+output "kube_admin_config" {
+  value = azurerm_kubernetes_cluster.aks.kube_admin_config[0]
 }
 
 output "kubelet_identity" {

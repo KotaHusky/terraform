@@ -108,3 +108,8 @@ To remove the deployed resources:
 ```bash
 terraform destroy
 ```
+
+To delete the Terraform local state file:
+```bash
+rm terraform.tfstate
+```
