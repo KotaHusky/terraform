@@ -9,6 +9,12 @@ resource "azuread_group" "aks_admins" {
   security_enabled = true
 }
 
+resource "azuread_group" "helm_users" {
+  display_name = "Helm Users"
+  members      = [var.admin_user_object_id]
+  security_enabled = true
+}
+
 output "aks_admins_group_id" {
   value = azuread_group.aks_admins.object_id
 }
