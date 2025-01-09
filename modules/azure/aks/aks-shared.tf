@@ -68,6 +68,14 @@ resource "azurerm_role_assignment" "aks_subnet" {
   scope                = azurerm_subnet.aks.id
 }
 
+resource "azurerm_public_ip" "aks_ingress" {
+  name                = "aks-ingress-pip"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
 output "kube_config" {
   value = azurerm_kubernetes_cluster.aks.kube_config[0]
 }
