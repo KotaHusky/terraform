@@ -17,10 +17,10 @@ provider "kubernetes" {
 
 provider "helm" {
   kubernetes {
-    host                   = module.aks.kube_config.host
-    client_certificate     = base64decode(module.aks.kube_config.client_certificate)
-    client_key             = base64decode(module.aks.kube_config.client_key)
-    cluster_ca_certificate = base64decode(module.aks.kube_config.cluster_ca_certificate)
+    host                   = module.aks.kube_admin_config.host
+    client_certificate     = base64decode(module.aks.kube_admin_config.client_certificate)
+    client_key             = base64decode(module.aks.kube_admin_config.client_key)
+    cluster_ca_certificate = base64decode(module.aks.kube_admin_config.cluster_ca_certificate)
   }
 }
 
@@ -44,6 +44,25 @@ variable "location" {
 variable "admin_user_object_id" {
   description = "The object ID of the Azure AD user that will be added to the admin group"
   type        = string
+}
+
+# Namespaces
+resource "kubernetes_namespace" "ingress_nginx" {
+  metadata {
+    name = "ingress-nginx"
+  }
+}
+
+resource "kubernetes_namespace" "webapps" {
+  metadata {
+    name = "webapps"
+  }
+}
+
+resource "kubernetes_namespace" "gaming" {
+  metadata {
+    name = "gaming"
+  }
 }
 
 # Resource Group

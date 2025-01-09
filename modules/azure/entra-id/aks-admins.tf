@@ -20,5 +20,5 @@ output "aks_admins_group_id" {
 }
 
 output "helm_users_group_id" {
-  value = azuread_group.helm_users.id
+  value = azuread_group.helm_users.object_id
 }

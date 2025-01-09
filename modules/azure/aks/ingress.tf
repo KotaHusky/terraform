@@ -40,14 +40,4 @@ resource "helm_release" "nginx_ingress" {
     name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-dns-label-name"
     value = "kota-dog-ingress"
   }
-
-  set {
-    name  = "controller.serviceAccount.create"
-    value = "false"
-  }
-
-  set {
-    name  = "controller.serviceAccount.name"
-    value = "helm"
-  }
 }
