@@ -66,6 +66,7 @@ module "aks" {
   location            = var.location
   name                = "aks-shared-prod"
   admin_group_object_id = module.aks_admins.aks_admins_group_id
+  helm_users_group_id = module.aks_admins.helm_users_group_id
 }
 
 ## Azure Container Registry (ACR) Module

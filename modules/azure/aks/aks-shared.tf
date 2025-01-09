@@ -15,11 +15,6 @@ variable "admin_group_object_id" {
   type        = string
 }
 
-resource "azurerm_resource_group" "aks" {
-  name     = var.name
-  location = var.location
-}
-
 resource "azurerm_virtual_network" "aks" {
   name                = "${var.name}-vnet"
   location            = var.location
@@ -83,4 +78,8 @@ output "kube_admin_config" {
 
 output "kubelet_identity" {
   value = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+}
+
+output "aks_id" {
+  value = azurerm_kubernetes_cluster.aks.id
 }

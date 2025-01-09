@@ -1,8 +1,12 @@
-provider "kubernetes" {
-  host                   = module.aks.kube_config.host
-  client_certificate     = base64decode(module.aks.kube_config.client_certificate)
-  client_key             = base64decode(module.aks.kube_config.client_key)
-  cluster_ca_certificate = base64decode(module.aks.kube_config.cluster_ca_certificate)
+variable "helm_users_group_id" {
+  description = "The group ID for Helm users"
+  type        = string
+}
+
+resource "azurerm_role_assignment" "helm_users" {
+  principal_id         = var.helm_users_group_id
+  role_definition_name = "Azure Kubernetes Service Cluster Admin Role"
+  scope                = azurerm_kubernetes_cluster.aks.id
 }
 
 resource "helm_release" "nginx_ingress" {
@@ -35,5 +39,15 @@ resource "helm_release" "nginx_ingress" {
   set {
     name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-dns-label-name"
     value = "kota-dog-ingress"
+  }
+
+  set {
+    name  = "controller.serviceAccount.create"
+    value = "false"
+  }
+
+  set {
+    name  = "controller.serviceAccount.name"
+    value = "helm"
   }
 }

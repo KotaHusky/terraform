@@ -18,3 +18,7 @@ resource "azuread_group" "helm_users" {
 output "aks_admins_group_id" {
   value = azuread_group.aks_admins.object_id
 }
+
+output "helm_users_group_id" {
+  value = azuread_group.helm_users.id
+}
