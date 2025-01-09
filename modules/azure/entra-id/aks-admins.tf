@@ -10,5 +10,5 @@ resource "azuread_group" "aks_admins" {
 }
 
 output "aks_admins_group_id" {
-  value = azuread_group.aks_admins.id
+  value = azuread_group.aks_admins.object_id
 }

@@ -67,8 +67,3 @@ module "acr" {
   name                = "kotahuskyacrshared"
   kubelet_identity    = module.aks.kubelet_identity
 }
-
-## TF2 Server Module
-module "tf2-server" {
-  source           = "./modules/game-servers/tf2-server"
-}
