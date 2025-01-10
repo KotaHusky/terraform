@@ -74,6 +74,9 @@ resource "azurerm_public_ip" "aks_ingress" {
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 output "kube_config" {
