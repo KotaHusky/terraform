@@ -85,7 +85,6 @@ module "aks" {
   location            = var.location
   name                = "aks-shared-prod"
   admin_group_object_id = module.aks_admins.aks_admins_group_id
-  helm_users_group_id = module.aks_admins.helm_users_group_id
 }
 
 ## Azure Container Registry (ACR) Module
@@ -95,4 +94,14 @@ module "acr" {
   location            = var.location
   name                = "kotahuskyacrshared"
   kubelet_identity    = module.aks.kubelet_identity
+}
+
+# AKS Ingress Module
+module "aks_ingress" {
+  source      = "./modules/azure/aks/ingress"
+  cluster_id  = module.aks.aks_id
+  location    = var.location
+  resource_group_name = azurerm_resource_group.aks.name
+  helm_users_group_id = module.aks_admins.aks_admins_group_id
+  depends_on = [ azurerm_resource_group.aks ]
 }

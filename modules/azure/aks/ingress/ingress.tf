@@ -3,10 +3,31 @@ variable "helm_users_group_id" {
   type        = string
 }
 
+variable "cluster_id" {
+  description = "The ID of the AKS cluster"
+  type        = string
+}
+
+variable "resource_group_name" {
+  description = "The name of the resource group"
+  type        = string
+}
+
+variable "location" {
+  description = "The location of the resources"
+  type        = string
+}
+
+module "public_ip" {
+  source              = "../../public-ip"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+}
+
 resource "azurerm_role_assignment" "helm_users" {
   principal_id         = var.helm_users_group_id
   role_definition_name = "Azure Kubernetes Service Cluster Admin Role"
-  scope                = azurerm_kubernetes_cluster.aks.id
+  scope                = var.cluster_id
 }
 
 data "kubernetes_namespace" "ingress_nginx" {
@@ -16,8 +37,10 @@ data "kubernetes_namespace" "ingress_nginx" {
 }
 
 resource "helm_release" "nginx_ingress" {
-  depends_on = [data.kubernetes_namespace.ingress_nginx]
-
+  depends_on = [
+    data.kubernetes_namespace.ingress_nginx,
+    module.public_ip.public_ip_address
+  ]
   name       = "nginx-ingress"
   namespace  = data.kubernetes_namespace.ingress_nginx.metadata[0].name
   repository = "https://kubernetes.github.io/ingress-nginx"
@@ -26,7 +49,7 @@ resource "helm_release" "nginx_ingress" {
 
   set {
     name  = "controller.service.loadBalancerIP"
-    value = azurerm_public_ip.aks_ingress.ip_address
+    value = module.public_ip.public_ip_address
   }
 
   set {
