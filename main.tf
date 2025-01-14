@@ -46,13 +46,26 @@ variable "admin_user_object_id" {
   type        = string
 }
 
-# Namespaces
-resource "kubernetes_namespace" "ingress_nginx" {
-  metadata {
-    name = "ingress-nginx"
+variable "resource_name_prefix" {
+  description = "The prefix for resource names"
+  type        = string
+  default     = "aks-shared"
+}
+
+variable "acr_name" {
+  description = "The name of the Azure Container Registry. Must be globally unique."
+  type        = string
+}
+
+variable "tags" {
+  description = "A map of tags to apply to the resources"
+  type        = map(string)
+  default     = {
+    Environment = "Production"
   }
 }
 
+# Namespaces
 resource "kubernetes_namespace" "webapps" {
   metadata {
     name = "webapps"
@@ -66,12 +79,29 @@ resource "kubernetes_namespace" "gaming" {
 }
 
 # Resource Group
-resource "azurerm_resource_group" "aks" {
-  name     = "aks-shared"
+resource "azurerm_resource_group" "rg" {
+  name     = var.resource_name_prefix
   location = var.location
 }
 
 # Modules
+
+# Azure Virtual Network Module
+module "vnet" {
+  source              = "./modules/azure/vnet"
+  name                = "${var.resource_name_prefix}-vnet"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  address_space       = ["10.0.0.0/16"]
+  subnets = [
+    {
+      name           = "${var.resource_name_prefix}-subnet"
+      address_prefix = "10.0.1.0/24"
+    }
+  ]
+  tags = var.tags
+}
+
 ## AKS Admins Module
 module "aks_admins" {
   source                = "./modules/azure/entra-id"
@@ -80,28 +110,48 @@ module "aks_admins" {
 
 ## AKS Cluster Module
 module "aks" {
-  source              = "./modules/azure/aks"
-  resource_group_name = azurerm_resource_group.aks.name
-  location            = var.location
-  name                = "aks-shared-prod"
+  source                = "./modules/azure/aks"
+  resource_group_name   = azurerm_resource_group.rg.name
+  location              = var.location
+  name                  = "${var.resource_name_prefix}-prod"
   admin_group_object_id = module.aks_admins.aks_admins_group_id
 }
 
 ## Azure Container Registry (ACR) Module
 module "acr" {
   source              = "./modules/azure/acr"
-  resource_group_name = azurerm_resource_group.aks.name
+  resource_group_name = azurerm_resource_group.rg.name
   location            = var.location
-  name                = "kotahuskyacrshared"
+  name                = "${var.acr_name}"
   kubelet_identity    = module.aks.kubelet_identity
 }
 
-# AKS Ingress Module
-module "aks_ingress" {
-  source      = "./modules/azure/aks/ingress"
-  cluster_id  = module.aks.aks_id
-  location    = var.location
-  resource_group_name = azurerm_resource_group.aks.name
-  helm_users_group_id = module.aks_admins.aks_admins_group_id
-  depends_on = [ azurerm_resource_group.aks ]
+## Azure Application Gateway
+module "app_gateway" {
+  source              = "./modules/azure/app-gateway"
+  name                = "${var.resource_name_prefix}-app-gateway"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  subnet_id           = module.vnet.subnet_ids["${var.resource_name_prefix}-subnet"]
+  public_ip_id        = module.public_ip.id
+  tags                = var.tags
+}
+
+module "public_ip" {
+  source              = "./modules/azure/public-ip"
+  name                = "${var.resource_name_prefix}-public-ip"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = var.tags
+}
+
+module "agic" {
+  source                  = "./modules/azure/agic"
+  application_gateway_id  = module.app_gateway.id
+  application_gateway_name = module.app_gateway.name
+  resource_group_name     = azurerm_resource_group.rg.name
+  kubelet_identity        = module.aks.kubelet_identity
+  kubelet_client_id      = module.aks.kubelet_client_id
 }

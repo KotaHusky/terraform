@@ -15,18 +15,19 @@ variable "admin_group_object_id" {
   type        = string
 }
 
-resource "azurerm_virtual_network" "aks" {
-  name                = "${var.name}-vnet"
-  location            = var.location
+module "vnet" {
+  source              = "../vnet"
   resource_group_name = var.resource_group_name
+  location            = var.location
+  name                = var.name
   address_space       = ["10.0.0.0/16"]
-}
-
-resource "azurerm_subnet" "aks" {
-  name                 = "${var.name}-subnet"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.aks.name
-  address_prefixes     = ["10.0.1.0/24"]
+  subnets = [
+    {
+      name           = "${var.name}-subnet"
+      address_prefix = "10.0.1.0/24"
+    }
+  ]
+  tags = {}
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
@@ -36,10 +37,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix          = "${var.name}-dns"
 
   default_node_pool {
-    name       = "default"
-    node_count = 1
-    vm_size    = "Standard_B2s"
-    vnet_subnet_id = azurerm_subnet.aks.id
+    name            = "default"
+    node_count      = 1
+    vm_size         = "Standard_B2s"
+    vnet_subnet_id  = module.vnet.subnet_ids["${var.name}-subnet"]
   }
 
   network_profile {
@@ -65,7 +66,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 resource "azurerm_role_assignment" "aks_subnet" {
   principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
   role_definition_name = "Network Contributor"
-  scope                = azurerm_subnet.aks.id
+  scope                = module.vnet.subnet_ids["${var.name}-subnet"]
 }
 
 output "kube_config" {
@@ -80,6 +81,14 @@ output "kubelet_identity" {
   value = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
 }
 
+output "kubelet_client_id" {
+  value = azurerm_kubernetes_cluster.aks.kubelet_identity[0].client_id
+}
+
 output "aks_id" {
   value = azurerm_kubernetes_cluster.aks.id
+}
+
+output "subnet_id" {
+  value = module.vnet.subnet_ids["${var.name}-subnet"]
 }
