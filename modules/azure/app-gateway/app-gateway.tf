@@ -1,9 +1,32 @@
-variable "name" {}
-variable "location" {}
-variable "resource_group_name" {}
-variable "subnet_id" {}
-variable "public_ip_id" {}
-variable "tags" { type = map(string) }
+variable "name" {
+  description = "The name of the Application Gateway"
+  type        = string
+}
+
+variable "location" {
+  description = "The location of the Application Gateway"
+  type        = string
+}
+
+variable "resource_group_name" {
+  description = "The name of the resource group"
+  type        = string
+}
+
+variable "public_ip_id" {
+  description = "The ID of the public IP address"
+  type        = string
+}
+
+variable "subnet_id" {
+  description = "The ID of the subnet"
+  type        = string
+}
+
+variable "tags" {
+  description = "A map of tags to assign to the resources"
+  type        = map(string)
+}
 
 resource "azurerm_application_gateway" "app_gateway" {
   name                = var.name
@@ -43,15 +66,16 @@ resource "azurerm_application_gateway" "app_gateway" {
   }
 
   request_routing_rule {
-    name               = "httpRule"
-    rule_type          = "Basic"
-    http_listener_name = "httpListener"
-    backend_address_pool_name = "dynamicPool"
-    backend_http_settings_name = "httpSetting"
+    name                       = "httpRule"
+    rule_type                  = "Basic"
+    http_listener_name         = "httpListener"
+    backend_address_pool_name  = "dynamicPool"
+    backend_http_settings_name = "httpSettings"
+    priority                   = 100
   }
 
   backend_http_settings {
-    name                  = "httpSetting"
+    name                  = "httpSettings"
     cookie_based_affinity = "Disabled"
     port                  = 80
     protocol              = "Http"
