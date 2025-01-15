@@ -15,19 +15,9 @@ variable "admin_group_object_id" {
   type        = string
 }
 
-module "vnet" {
-  source              = "../vnet"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  name                = var.name
-  address_space       = ["10.0.0.0/16"]
-  subnets = [
-    {
-      name           = "${var.name}-subnet"
-      address_prefix = "10.0.1.0/24"
-    }
-  ]
-  tags = {}
+variable "subnet_id" {
+  description = "The ID of the subnet for the AKS cluster"
+  type        = string
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
@@ -40,7 +30,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     name            = "default"
     node_count      = 1
     vm_size         = "Standard_B2s"
-    vnet_subnet_id  = module.vnet.subnet_ids["${var.name}-subnet"]
+    vnet_subnet_id  = var.subnet_id
   }
 
   network_profile {
@@ -66,7 +56,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 resource "azurerm_role_assignment" "aks_subnet" {
   principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
   role_definition_name = "Network Contributor"
-  scope                = module.vnet.subnet_ids["${var.name}-subnet"]
+  scope                = var.subnet_id
 }
 
 output "kube_config" {
@@ -87,8 +77,4 @@ output "kubelet_client_id" {
 
 output "aks_id" {
   value = azurerm_kubernetes_cluster.aks.id
-}
-
-output "subnet_id" {
-  value = module.vnet.subnet_ids["${var.name}-subnet"]
 }

@@ -85,8 +85,7 @@ resource "azurerm_resource_group" "rg" {
 }
 
 # Modules
-
-# Azure Virtual Network Module
+## Virtual Network Module
 module "vnet" {
   source              = "./modules/azure/vnet"
   name                = "${var.resource_name_prefix}-vnet"
@@ -115,6 +114,7 @@ module "aks" {
   location              = var.location
   name                  = "${var.resource_name_prefix}-prod"
   admin_group_object_id = module.aks_admins.aks_admins_group_id
+  subnet_id             = module.vnet.subnet_ids["${var.resource_name_prefix}-subnet"]
 }
 
 ## Azure Container Registry (ACR) Module
@@ -137,6 +137,7 @@ module "app_gateway" {
   tags                = var.tags
 }
 
+## Public IP Module
 module "public_ip" {
   source              = "./modules/azure/public-ip"
   name                = "${var.resource_name_prefix}-public-ip"
@@ -147,11 +148,12 @@ module "public_ip" {
   tags                = var.tags
 }
 
+## AGIC Module
 module "agic" {
   source                  = "./modules/azure/agic"
-  application_gateway_id  = module.app_gateway.id
-  application_gateway_name = module.app_gateway.name
+  application_gateway_id  = module.app_gateway.application_gateway_id
+  application_gateway_name = module.app_gateway.application_gateway_name
   resource_group_name     = azurerm_resource_group.rg.name
   kubelet_identity        = module.aks.kubelet_identity
-  kubelet_client_id      = module.aks.kubelet_client_id
+  kubelet_client_id       = module.aks.kubelet_client_id
 }

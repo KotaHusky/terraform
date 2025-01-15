@@ -34,8 +34,8 @@ resource "azurerm_application_gateway" "app_gateway" {
   resource_group_name = var.resource_group_name
 
   sku {
-    name     = "WAF_v2"
-    tier     = "WAF_v2"
+    name     = "Standard_v2"
+    tier     = "Standard_v2"
     capacity = 2
   }
 
@@ -85,10 +85,10 @@ resource "azurerm_application_gateway" "app_gateway" {
   tags = var.tags
 }
 
-output "id" {
+output "application_gateway_id" {
   value = azurerm_application_gateway.app_gateway.id
 }
 
-output "name" {
+output "application_gateway_name" {
   value = azurerm_application_gateway.app_gateway.name
 }
