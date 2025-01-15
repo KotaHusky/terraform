@@ -34,7 +34,6 @@ provider "helm" {
 }
 
 provider "kubectl" {
-  alias = "kubectl"
   host                   = module.aks.kube_admin_config.host
   client_certificate     = base64decode(module.aks.kube_admin_config.client_certificate)
   client_key             = base64decode(module.aks.kube_admin_config.client_key)
