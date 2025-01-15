@@ -1,0 +1,6 @@
+apiVersion: "appgw.ingress.k8s.io/v1"
+kind: AzureIngressProhibitedTarget
+metadata:
+  name: prohibit-all-except-webapp
+spec:
+  namespace: webapp

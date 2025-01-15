@@ -204,10 +204,5 @@ module "agic" {
   kubelet_identity        = module.aks.kubelet_identity
   kubelet_client_id       = module.aks.kubelet_client_id
   namespace               = "agic"
-  kube_config = {
-    host                   = module.aks.kube_admin_config.host
-    client_certificate     = module.aks.kube_admin_config.client_certificate
-    client_key             = module.aks.kube_admin_config.client_key
-    cluster_ca_certificate = module.aks.kube_admin_config.cluster_ca_certificate
-  }
+  aks_cluster_name        = module.aks.aks_cluster_name
 }

@@ -15,26 +15,29 @@ variable "kubelet_client_id" {}
 variable "namespace" {
   default = "agic"
 }
-variable "kube_config" {
-  description = "Kubernetes configuration for the cluster"
-  type = object({
-    host                   = string
-    client_certificate     = string
-    client_key             = string
-    cluster_ca_certificate = string
-  })
+variable "aks_cluster_name" {}
+
+data "azurerm_kubernetes_cluster" "aks" {
+  name                = var.aks_cluster_name
+  resource_group_name = var.resource_group_name
 }
 
 provider "kubectl" {
-  host                   = var.kube_config.host
-  client_certificate     = base64decode(var.kube_config.client_certificate)
-  client_key             = base64decode(var.kube_config.client_key)
-  cluster_ca_certificate = base64decode(var.kube_config.cluster_ca_certificate)
+  host                   = data.azurerm_kubernetes_cluster.aks.kube_config[0].host
+  client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].client_certificate)
+  client_key             = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].client_key)
+  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].cluster_ca_certificate)
 }
 
 # Deploy the AzureIngressProhibitedTarget CRD
 resource "kubectl_manifest" "azure_ingress_prohibited_target_crd" {
   yaml_body = file("${path.module}/manifests/prohibited-target-crd.yaml")
+}
+
+# Deploy the AzureIngressProhibitedTarget resource
+resource "kubectl_manifest" "prohibit_all_except_webapp" {
+  depends_on = [kubectl_manifest.azure_ingress_prohibited_target_crd]
+  yaml_body  = file("${path.module}/manifests/prohibit-all-except-webapp.yaml")
 }
 
 # Deploy AGIC and Pod Identity Helm Charts
@@ -45,7 +48,7 @@ resource "azurerm_role_assignment" "agic_role" {
 }
 
 resource "helm_release" "agic" {
-  depends_on = [kubectl_manifest.azure_ingress_prohibited_target_crd]
+  depends_on = [kubectl_manifest.prohibit_all_except_webapp]
 
   name       = "agic"
   repository = "https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"

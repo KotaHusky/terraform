@@ -88,3 +88,7 @@ output "kubelet_client_id" {
 output "aks_id" {
   value = azurerm_kubernetes_cluster.aks.id
 }
+
+output "aks_cluster_name" {
+  value = azurerm_kubernetes_cluster.aks.name
+}
