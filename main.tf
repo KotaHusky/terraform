@@ -34,6 +34,7 @@ provider "helm" {
 }
 
 provider "kubectl" {
+  alias = "kubectl"
   host                   = module.aks.kube_admin_config.host
   client_certificate     = base64decode(module.aks.kube_admin_config.client_certificate)
   client_key             = base64decode(module.aks.kube_admin_config.client_key)
@@ -205,4 +206,9 @@ module "agic" {
   kubelet_client_id       = module.aks.kubelet_client_id
   namespace               = "agic"
   aks_cluster_name        = module.aks.aks_cluster_name
+  providers = {
+    kubectl = kubectl
+  }
+
+  depends_on = [module.aks]
 }

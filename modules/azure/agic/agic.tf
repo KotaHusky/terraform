@@ -17,25 +17,22 @@ variable "namespace" {
 }
 variable "aks_cluster_name" {}
 
-data "azurerm_kubernetes_cluster" "aks" {
-  name                = var.aks_cluster_name
-  resource_group_name = var.resource_group_name
-}
-
-provider "kubectl" {
-  host                   = data.azurerm_kubernetes_cluster.aks.kube_config[0].host
-  client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].client_certificate)
-  client_key             = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].client_key)
-  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config[0].cluster_ca_certificate)
+# Deploy the Azure AD Pod Identity CRDs
+resource "kubectl_manifest" "aadpodidentity_crds" {
+  provider = kubectl
+  yaml_body = file("${path.module}/manifests/aadpodidentity-crds.yaml")
 }
 
 # Deploy the AzureIngressProhibitedTarget CRD
 resource "kubectl_manifest" "azure_ingress_prohibited_target_crd" {
-  yaml_body = file("${path.module}/manifests/prohibited-target-crd.yaml")
+  provider = kubectl
+  depends_on = [kubectl_manifest.aadpodidentity_crds]
+  yaml_body  = file("${path.module}/manifests/prohibited-target-crd.yaml")
 }
 
 # Deploy the AzureIngressProhibitedTarget resource
 resource "kubectl_manifest" "prohibit_all_except_webapp" {
+  provider = kubectl
   depends_on = [kubectl_manifest.azure_ingress_prohibited_target_crd]
   yaml_body  = file("${path.module}/manifests/prohibit-all-except-webapp.yaml")
 }
@@ -48,7 +45,10 @@ resource "azurerm_role_assignment" "agic_role" {
 }
 
 resource "helm_release" "agic" {
-  depends_on = [kubectl_manifest.prohibit_all_except_webapp]
+  depends_on = [
+    kubectl_manifest.prohibit_all_except_webapp,
+    kubectl_manifest.aadpodidentity_crds
+  ]
 
   name       = "agic"
   repository = "https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
