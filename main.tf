@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.7.0"
+    }
+  }
+}
+
 # Providers Configuration
 provider "azurerm" {
   features {}
@@ -22,6 +31,13 @@ provider "helm" {
     client_key             = base64decode(module.aks.kube_admin_config.client_key)
     cluster_ca_certificate = base64decode(module.aks.kube_admin_config.cluster_ca_certificate)
   }
+}
+
+provider "kubectl" {
+  host                   = module.aks.kube_admin_config.host
+  client_certificate     = base64decode(module.aks.kube_admin_config.client_certificate)
+  client_key             = base64decode(module.aks.kube_admin_config.client_key)
+  cluster_ca_certificate = base64decode(module.aks.kube_admin_config.cluster_ca_certificate)
 }
 
 # Variables
@@ -65,6 +81,36 @@ variable "tags" {
   }
 }
 
+variable "vnet_cidr" {
+  description = "The CIDR block for the virtual network"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "aks_subnet_cidr" {
+  description = "The CIDR block for the AKS subnet"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "appgw_subnet_cidr" {
+  description = "The CIDR block for the Application Gateway subnet"
+  type        = string
+  default     = "10.0.2.0/24"
+}
+
+variable "service_cidr" {
+  description = "The CIDR block for the Kubernetes service network"
+  type        = string
+  default     = "10.0.3.0/24"
+}
+
+variable "dns_service_ip" {
+  description = "The IP address within the service CIDR to use for DNS"
+  type        = string
+  default     = "10.0.3.10"
+}
+
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_name_prefix
@@ -78,7 +124,7 @@ module "vnet" {
   name                = "${var.resource_name_prefix}-vnet"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  address_space       = ["10.0.0.0/16"]
+  address_space       = [var.vnet_cidr]
   tags                = var.tags
 }
 
@@ -91,11 +137,11 @@ module "subnet" {
   subnets = [
     {
       name           = "${var.resource_name_prefix}-aks-subnet"
-      address_prefix = "10.0.1.0/24"
+      address_prefix = var.aks_subnet_cidr
     },
     {
       name           = "${var.resource_name_prefix}-appgw-subnet"
-      address_prefix = "10.0.2.0/24"
+      address_prefix = var.appgw_subnet_cidr
     }
   ]
 }
@@ -114,6 +160,8 @@ module "aks" {
   name                  = "${var.resource_name_prefix}-prod"
   admin_group_object_id = module.aks_admins.aks_admins_group_id
   subnet_id             = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
+  service_cidr          = var.service_cidr
+  dns_service_ip        = var.dns_service_ip
 }
 
 ## Azure Container Registry (ACR) Module
@@ -155,4 +203,11 @@ module "agic" {
   resource_group_name     = azurerm_resource_group.rg.name
   kubelet_identity        = module.aks.kubelet_identity
   kubelet_client_id       = module.aks.kubelet_client_id
+  namespace               = "agic"
+  kube_config = {
+    host                   = module.aks.kube_admin_config.host
+    client_certificate     = module.aks.kube_admin_config.client_certificate
+    client_key             = module.aks.kube_admin_config.client_key
+    cluster_ca_certificate = module.aks.kube_admin_config.cluster_ca_certificate
+  }
 }

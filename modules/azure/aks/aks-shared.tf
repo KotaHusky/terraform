@@ -20,6 +20,16 @@ variable "subnet_id" {
   type        = string
 }
 
+variable "service_cidr" {
+  description = "The CIDR block for the Kubernetes service network"
+  type        = string
+}
+
+variable "dns_service_ip" {
+  description = "The IP address within the service CIDR to use for DNS"
+  type        = string
+}
+
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = "${var.name}-cluster"
   location            = var.location
@@ -35,8 +45,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   network_profile {
     network_plugin = "azure"
-    service_cidr   = "10.0.2.0/24"
-    dns_service_ip = "10.0.2.10"
+    service_cidr   = var.service_cidr
+    dns_service_ip = var.dns_service_ip
   }
 
   identity {
