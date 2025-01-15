@@ -65,19 +65,6 @@ variable "tags" {
   }
 }
 
-# Namespaces
-resource "kubernetes_namespace" "webapps" {
-  metadata {
-    name = "webapps"
-  }
-}
-
-resource "kubernetes_namespace" "gaming" {
-  metadata {
-    name = "gaming"
-  }
-}
-
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_name_prefix
@@ -92,13 +79,25 @@ module "vnet" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   address_space       = ["10.0.0.0/16"]
+  tags                = var.tags
+}
+
+## Subnet Module
+module "subnet" {
+  source              = "./modules/azure/subnet"
+  resource_group_name = azurerm_resource_group.rg.name
+  virtual_network_name = module.vnet.name
+  name                = "${var.resource_name_prefix}-subnets"
   subnets = [
     {
-      name           = "${var.resource_name_prefix}-subnet"
+      name           = "${var.resource_name_prefix}-aks-subnet"
       address_prefix = "10.0.1.0/24"
+    },
+    {
+      name           = "${var.resource_name_prefix}-appgw-subnet"
+      address_prefix = "10.0.2.0/24"
     }
   ]
-  tags = var.tags
 }
 
 ## AKS Admins Module
@@ -114,7 +113,7 @@ module "aks" {
   location              = var.location
   name                  = "${var.resource_name_prefix}-prod"
   admin_group_object_id = module.aks_admins.aks_admins_group_id
-  subnet_id             = module.vnet.subnet_ids["${var.resource_name_prefix}-subnet"]
+  subnet_id             = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
 }
 
 ## Azure Container Registry (ACR) Module
@@ -126,13 +125,13 @@ module "acr" {
   kubelet_identity    = module.aks.kubelet_identity
 }
 
-## Azure Application Gateway
+## Azure Application Gateway Module
 module "app_gateway" {
   source              = "./modules/azure/app-gateway"
   name                = "${var.resource_name_prefix}-app-gateway"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  subnet_id           = module.vnet.subnet_ids["${var.resource_name_prefix}-subnet"]
+  subnet_id           = module.subnet.subnet_ids["${var.resource_name_prefix}-appgw-subnet"]
   public_ip_id        = module.public_ip.id
   tags                = var.tags
 }
