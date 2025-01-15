@@ -31,6 +31,12 @@ resource "azurerm_virtual_network" "vnet" {
   address_space       = var.address_space
 
   tags = var.tags
+
+  lifecycle {
+    ignore_changes = [
+      address_space,
+    ]
+  }
 }
 
 output "vnet_id" {
