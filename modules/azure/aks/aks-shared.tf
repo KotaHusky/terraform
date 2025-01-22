@@ -69,6 +69,19 @@ resource "azurerm_role_assignment" "aks_subnet" {
   scope                = var.subnet_id
 }
 
+# Role Assignments
+resource "azurerm_role_assignment" "aks_cluster_user_role" {
+  scope                = azurerm_kubernetes_cluster.aks.id
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = var.admin_group_object_id
+}
+
+resource "azurerm_role_assignment" "aks_cluster_admin_role" {
+  scope                = azurerm_kubernetes_cluster.aks.id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = var.admin_group_object_id
+}
+
 output "kube_config" {
   value = azurerm_kubernetes_cluster.aks.kube_config[0]
 }

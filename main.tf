@@ -117,6 +117,19 @@ resource "azurerm_resource_group" "rg" {
   location = var.location
 }
 
+# Namespaces
+resource "kubernetes_namespace" "webapps" {
+  metadata {
+    name = "webapps"
+  }
+}
+
+resource "kubernetes_namespace" "agic" {
+  metadata {
+    name = "agic"
+  }
+}
+
 # Modules
 ## Virtual Network Module
 module "vnet" {

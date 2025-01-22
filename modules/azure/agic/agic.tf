@@ -19,22 +19,66 @@ variable "aks_cluster_name" {}
 
 # Deploy the Azure AD Pod Identity CRDs
 resource "kubectl_manifest" "aadpodidentity_crds" {
-  provider = kubectl
+  provider  = kubectl
   yaml_body = file("${path.module}/manifests/aadpodidentity-crds.yaml")
 }
 
 # Deploy the AzureIngressProhibitedTarget CRD
 resource "kubectl_manifest" "azure_ingress_prohibited_target_crd" {
-  provider = kubectl
+  provider   = kubectl
   depends_on = [kubectl_manifest.aadpodidentity_crds]
   yaml_body  = file("${path.module}/manifests/prohibited-target-crd.yaml")
 }
 
 # Deploy the AzureIngressProhibitedTarget resource
 resource "kubectl_manifest" "prohibit_all_except_webapp" {
-  provider = kubectl
+  provider   = kubectl
   depends_on = [kubectl_manifest.azure_ingress_prohibited_target_crd]
   yaml_body  = file("${path.module}/manifests/prohibit-all-except-webapp.yaml")
+}
+
+# Add a delay to ensure CRDs are fully registered
+resource "null_resource" "delay" {
+  depends_on = [
+    kubectl_manifest.prohibit_all_except_webapp,
+    kubectl_manifest.aadpodidentity_crds
+  ]
+
+  provisioner "local-exec" {
+    command = "sleep 20"
+  }
+}
+
+# Deploy Azure AD Pod Identity
+resource "kubectl_manifest" "aadpodidentity" {
+  provider   = kubectl
+  depends_on = [kubectl_manifest.aadpodidentity_crds]
+  yaml_body  = <<EOF
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentity
+metadata:
+  name: aadpodidentity
+  namespace: ${var.namespace}
+spec:
+  type: 0
+  resourceID: ${var.kubelet_identity}
+  clientID: ${var.kubelet_client_id}
+EOF
+}
+
+resource "kubectl_manifest" "aadpodidentitybinding" {
+  provider   = kubectl
+  depends_on = [kubectl_manifest.aadpodidentity]
+  yaml_body  = <<EOF
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentityBinding
+metadata:
+  name: aadpodidentitybinding
+  namespace: ${var.namespace}
+spec:
+  azureIdentity: aadpodidentity
+  selector: aadpodidentitybinding
+EOF
 }
 
 # Deploy AGIC and Pod Identity Helm Charts
@@ -46,14 +90,18 @@ resource "azurerm_role_assignment" "agic_role" {
 
 resource "helm_release" "agic" {
   depends_on = [
+    null_resource.delay,
     kubectl_manifest.prohibit_all_except_webapp,
-    kubectl_manifest.aadpodidentity_crds
+    kubectl_manifest.aadpodidentity_crds,
+    kubectl_manifest.aadpodidentity,
+    kubectl_manifest.aadpodidentitybinding
   ]
 
   name       = "agic"
   repository = "https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
   chart      = "ingress-azure"
   namespace  = var.namespace
+  timeout    = 1200 # 20 minutes
 
   set {
     name  = "appgw.resourceGroup"
@@ -83,6 +131,11 @@ resource "helm_release" "agic" {
   set {
     name  = "kubernetes.watchNamespace"
     value = var.namespace
+  }
+
+  set {
+    name  = "verbosityLevel"
+    value = "5"
   }
 }
 
