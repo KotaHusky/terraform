@@ -28,6 +28,13 @@ variable "tags" {
   type        = map(string)
 }
 
+resource "azurerm_user_assigned_identity" "app_gateway_identity" {
+  name                = "${var.name}-appgateway-identity"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
 resource "azurerm_application_gateway" "app_gateway" {
   name                = var.name
   location            = var.location
@@ -82,6 +89,13 @@ resource "azurerm_application_gateway" "app_gateway" {
     request_timeout       = 20
   }
 
+  identity {
+    type = "UserAssigned"
+    identity_ids = [
+      azurerm_user_assigned_identity.app_gateway_identity.id
+    ]
+  }
+
   tags = var.tags
 }
 
@@ -91,4 +105,16 @@ output "application_gateway_id" {
 
 output "application_gateway_name" {
   value = azurerm_application_gateway.app_gateway.name
+}
+
+output "identity_client_id" {
+  value = azurerm_user_assigned_identity.app_gateway_identity.client_id
+}
+
+output "identity_resource_id" {
+  value = azurerm_user_assigned_identity.app_gateway_identity.id
+}
+
+output "app_gateway_identity_principal_id" {
+  value = azurerm_user_assigned_identity.app_gateway_identity.principal_id
 }

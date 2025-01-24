@@ -30,6 +30,32 @@ variable "dns_service_ip" {
   type        = string
 }
 
+variable "app_gateway_id" {
+  description = "The ID of the Application Gateway"
+  type        = string
+}
+
+variable "app_gateway_identity_principal_id" {
+  description = "The principal ID of the Application Gateway identity"
+  type        = string
+}
+
+variable "resource_group_id" {
+  description = "The ID of the resource group"
+  type        = string
+}
+
+variable "managed_identity_scope" {
+  description = "The scope for the managed identity"
+  type        = string
+}
+
+resource "azurerm_user_assigned_identity" "aks_identity" {
+  name                = "${var.name}-aks-identity"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+}
+
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = "${var.name}-cluster"
   location            = var.location
@@ -50,7 +76,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   identity {
-    type = "SystemAssigned"
+    type = "UserAssigned"
+    identity_ids = [
+      azurerm_user_assigned_identity.aks_identity.id
+    ]
   }
 
   azure_active_directory_role_based_access_control {
@@ -58,18 +87,43 @@ resource "azurerm_kubernetes_cluster" "aks" {
     admin_group_object_ids  = [var.admin_group_object_id]
   }
 
+  ingress_application_gateway {
+    gateway_id = var.app_gateway_id
+  }
+
   tags = {
     environment = "production"
   }
 }
 
+# Role Assignments for AKS Subnet
 resource "azurerm_role_assignment" "aks_subnet" {
-  principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
   role_definition_name = "Network Contributor"
   scope                = var.subnet_id
 }
 
-# Role Assignments
+# Role Assignments for AGIC
+resource "azurerm_role_assignment" "agic_reader" {
+  scope                = var.resource_group_id
+  role_definition_name = "Reader"
+  principal_id         = var.app_gateway_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "agic_contributor" {
+  scope                = var.app_gateway_id
+  role_definition_name = "Contributor"
+  principal_id         = var.app_gateway_identity_principal_id
+}
+
+# Role Assignments for AGIC to manage User Assigned Identity
+resource "azurerm_role_assignment" "agic_msi_assign" {
+  scope                = var.managed_identity_scope
+  role_definition_name = "Managed Identity Operator"
+  principal_id         = var.app_gateway_identity_principal_id
+}
+
+# Role Assignments for AKS Cluster
 resource "azurerm_role_assignment" "aks_cluster_user_role" {
   scope                = azurerm_kubernetes_cluster.aks.id
   role_definition_name = "Azure Kubernetes Service Cluster User Role"
@@ -104,4 +158,12 @@ output "aks_id" {
 
 output "aks_cluster_name" {
   value = azurerm_kubernetes_cluster.aks.name
+}
+
+output "identity_client_id" {
+  value = azurerm_user_assigned_identity.aks_identity.client_id
+}
+
+output "identity_resource_id" {
+  value = azurerm_user_assigned_identity.aks_identity.id
 }

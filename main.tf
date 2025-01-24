@@ -4,6 +4,10 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = ">= 1.7.0"
     }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">= 2.0"
+    }
   }
 }
 
@@ -115,18 +119,15 @@ variable "dns_service_ip" {
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_name_prefix
   location = var.location
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Namespaces
 resource "kubernetes_namespace" "webapps" {
   metadata {
     name = "webapps"
-  }
-}
-
-resource "kubernetes_namespace" "agic" {
-  metadata {
-    name = "agic"
   }
 }
 
@@ -175,6 +176,10 @@ module "aks" {
   subnet_id             = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
   service_cidr          = var.service_cidr
   dns_service_ip        = var.dns_service_ip
+  app_gateway_identity_principal_id = module.app_gateway.app_gateway_identity_principal_id
+  app_gateway_id = module.app_gateway.application_gateway_id
+  resource_group_id = azurerm_resource_group.rg.id
+  managed_identity_scope = module.app_gateway.identity_resource_id
 }
 
 ## Azure Container Registry (ACR) Module
@@ -206,21 +211,4 @@ module "public_ip" {
   allocation_method   = "Static"
   sku                 = "Standard"
   tags                = var.tags
-}
-
-## AGIC Module
-module "agic" {
-  source                  = "./modules/azure/agic"
-  application_gateway_id  = module.app_gateway.application_gateway_id
-  application_gateway_name = module.app_gateway.application_gateway_name
-  resource_group_name     = azurerm_resource_group.rg.name
-  kubelet_identity        = module.aks.kubelet_identity
-  kubelet_client_id       = module.aks.kubelet_client_id
-  namespace               = "agic"
-  aks_cluster_name        = module.aks.aks_cluster_name
-  providers = {
-    kubectl = kubectl
-  }
-
-  depends_on = [module.aks]
 }
