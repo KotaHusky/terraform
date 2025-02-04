@@ -51,3 +51,7 @@ output "load_balancer_id" {
 output "backend_pool_id" {
   value = azurerm_lb_backend_address_pool.backend_pool.id
 }
+
+output "frontend_ip_configuration_id" {
+  value = azurerm_lb.load_balancer.frontend_ip_configuration[0].id
+}

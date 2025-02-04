@@ -172,6 +172,7 @@ module "aks" {
   dns_service_ip        = var.dns_service_ip
   resource_group_id     = azurerm_resource_group.rg.id
   load_balancer_id      = module.load_balancer.load_balancer_id
+  frontend_ip_configuration_id = module.load_balancer.frontend_ip_configuration_id
 }
 
 ## Azure Container Registry (ACR) Module
