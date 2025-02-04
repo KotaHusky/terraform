@@ -41,9 +41,9 @@ resource "azurerm_application_gateway" "app_gateway" {
   resource_group_name = var.resource_group_name
 
   sku {
-    name     = "Standard_v2"
-    tier     = "Standard_v2"
-    capacity = 2
+    name     = "Basic"
+    tier     = "Basic"
+    capacity = 1
   }
 
   gateway_ip_configuration {

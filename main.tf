@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = ">= 2.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.0.0"
+    }
   }
 }
 
@@ -97,12 +101,6 @@ variable "aks_subnet_cidr" {
   default     = "10.0.1.0/24"
 }
 
-variable "appgw_subnet_cidr" {
-  description = "The CIDR block for the Application Gateway subnet"
-  type        = string
-  default     = "10.0.2.0/24"
-}
-
 variable "service_cidr" {
   description = "The CIDR block for the Kubernetes service network"
   type        = string
@@ -152,10 +150,6 @@ module "subnet" {
     {
       name           = "${var.resource_name_prefix}-aks-subnet"
       address_prefix = var.aks_subnet_cidr
-    },
-    {
-      name           = "${var.resource_name_prefix}-appgw-subnet"
-      address_prefix = var.appgw_subnet_cidr
     }
   ]
 }
@@ -176,10 +170,8 @@ module "aks" {
   subnet_id             = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
   service_cidr          = var.service_cidr
   dns_service_ip        = var.dns_service_ip
-  app_gateway_identity_principal_id = module.app_gateway.app_gateway_identity_principal_id
-  app_gateway_id = module.app_gateway.application_gateway_id
-  resource_group_id = azurerm_resource_group.rg.id
-  managed_identity_scope = module.app_gateway.identity_resource_id
+  resource_group_id     = azurerm_resource_group.rg.id
+  load_balancer_id      = module.load_balancer.load_balancer_id
 }
 
 ## Azure Container Registry (ACR) Module
@@ -191,17 +183,6 @@ module "acr" {
   kubelet_identity    = module.aks.kubelet_identity
 }
 
-## Azure Application Gateway Module
-module "app_gateway" {
-  source              = "./modules/azure/app-gateway"
-  name                = "${var.resource_name_prefix}-app-gateway"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  subnet_id           = module.subnet.subnet_ids["${var.resource_name_prefix}-appgw-subnet"]
-  public_ip_id        = module.public_ip.id
-  tags                = var.tags
-}
-
 ## Public IP Module
 module "public_ip" {
   source              = "./modules/azure/public-ip"
@@ -211,4 +192,66 @@ module "public_ip" {
   allocation_method   = "Static"
   sku                 = "Standard"
   tags                = var.tags
+}
+
+## Load Balancer Module
+module "load_balancer" {
+  source              = "./modules/azure/load-balancer"
+  name                = "${var.resource_name_prefix}-lb"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  public_ip_id        = module.public_ip.id
+  subnet_id           = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
+  tags                = var.tags
+}
+
+## Random ID for Unique Helm Release Name
+resource "random_id" "nginx_ingress" {
+  keepers = {
+    namespace = "kube-system"
+  }
+  byte_length = 4
+}
+
+## NGINX Ingress Module
+resource "helm_release" "nginx_ingress" {
+  name       = "nginx-ingress-${random_id.nginx_ingress.hex}"
+  namespace  = "kube-system"
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+  version    = "4.0.6"
+
+  set {
+    name  = "controller.replicaCount"
+    value = 2
+  }
+
+  set {
+    name  = "controller.nodeSelector.kubernetes\\.io/os"
+    value = "linux"
+  }
+
+  set {
+    name  = "defaultBackend.nodeSelector.kubernetes\\.io/os"
+    value = "linux"
+  }
+
+  set {
+    name  = "controller.service.externalTrafficPolicy"
+    value = "Local"
+  }
+
+  set {
+    name  = "controller.admissionWebhooks.patch.nodeSelector.kubernetes\\.io/os"
+    value = "linux"
+  }
+
+  set {
+    name  = "controller.service.loadBalancerIP"
+    value = module.public_ip.public_ip_address
+  }
+}
+
+output "nginx_ingress_status" {
+  value = helm_release.nginx_ingress.status
 }

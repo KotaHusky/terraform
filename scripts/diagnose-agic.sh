@@ -35,7 +35,13 @@ fi
 
 # Check the Backend Pool Configuration
 echo -e "${YELLOW}Checking the Backend Pool Configuration...${NC}"
-az network application-gateway address-pool show --resource-group $RESOURCE_GROUP --gateway-name $APP_GATEWAY_NAME --name dynamicPool
+BACKEND_POOL=$(az network application-gateway address-pool show --resource-group $RESOURCE_GROUP --gateway-name $APP_GATEWAY_NAME --name dynamicPool)
+BACKEND_ADDRESSES=$(echo $BACKEND_POOL | jq '.backendAddresses')
+if [ "$BACKEND_ADDRESSES" == "[]" ]; then
+  echo -e "${RED}Warning: Backend addresses are empty. Please check your backend pool configuration.${NC}"
+else
+  echo $BACKEND_POOL
+fi
 
 # Check the Health Probes
 echo -e "${YELLOW}Checking the Health Probes...${NC}"
