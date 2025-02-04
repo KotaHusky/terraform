@@ -65,8 +65,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     dns_service_ip = var.dns_service_ip
 
     load_balancer_profile {
-      managed_outbound_ip_count = 1
-      outbound_ip_address_ids   = [var.load_balancer_id]
+      outbound_ip_address_ids = [var.load_balancer_id]
     }
   }
 
