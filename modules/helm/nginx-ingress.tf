@@ -21,6 +21,7 @@ resource "helm_release" "nginx_ingress" {
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
   version    = "4.0.6"
+  timeout = 480 # Longer timeout for Helm release
 
   set {
     name  = "controller.replicaCount"
@@ -60,6 +61,11 @@ resource "helm_release" "nginx_ingress" {
   set {
     name  = "controller.resources.limits.cpu"
     value = "200m"
+  }
+
+  set {
+    name  = "controller.admissionWebhooks.enabled"
+    value = "false"
   }
 }
 
