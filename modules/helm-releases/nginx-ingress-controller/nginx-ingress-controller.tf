@@ -60,7 +60,3 @@ resource "helm_release" "nginx_ingress" {
     value = "200m"
   }
 }
-
-output "nginx_ingress_status" {
-  value = helm_release.nginx_ingress.status
-}
