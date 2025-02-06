@@ -15,37 +15,34 @@ variable "load_balancer_ip" {
   type        = string
 }
 
+variable "resource_group_name" {
+  description = "The name of the resource group"
+  type        = string
+  
+}
+
+variable "name" {
+  description = "The name of the Helm release"
+  type        = string
+  default     = "nginx-ingress"
+}
+
 resource "helm_release" "nginx_ingress" {
-  name       = "nginx-ingress"
+  name       = var.name
   namespace  = var.namespace
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
   version    = "4.0.6"
-  timeout = 480 # Longer timeout for Helm release
+  timeout = 600 # Longer timeout for Helm release
+
+  set {
+    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-resource-group"
+    value = var.resource_group_name
+  }
 
   set {
     name  = "controller.replicaCount"
     value = var.replica_count
-  }
-
-  set {
-    name  = "controller.nodeSelector.kubernetes\\.io/os"
-    value = "linux"
-  }
-
-  set {
-    name  = "defaultBackend.nodeSelector.kubernetes\\.io/os"
-    value = "linux"
-  }
-
-  set {
-    name  = "controller.service.externalTrafficPolicy"
-    value = "Local"
-  }
-
-  set {
-    name  = "controller.admissionWebhooks.patch.nodeSelector.kubernetes\\.io/os"
-    value = "linux"
   }
 
   set {
@@ -61,11 +58,6 @@ resource "helm_release" "nginx_ingress" {
   set {
     name  = "controller.resources.limits.cpu"
     value = "200m"
-  }
-
-  set {
-    name  = "controller.admissionWebhooks.enabled"
-    value = "false"
   }
 }
 

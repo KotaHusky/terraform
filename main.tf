@@ -195,17 +195,6 @@ module "public_ip" {
   tags                = var.tags
 }
 
-## Load Balancer Module
-module "load_balancer" {
-  source              = "./modules/azure/load-balancer"
-  name                = "${var.resource_name_prefix}-lb"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  public_ip_id        = module.public_ip.id
-  subnet_id           = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
-  tags                = var.tags
-}
-
 ## Random ID for Unique Helm Release Name
 resource "random_id" "nginx_ingress" {
   keepers = {
@@ -214,45 +203,12 @@ resource "random_id" "nginx_ingress" {
   byte_length = 4
 }
 
-## NGINX Ingress Module
-resource "helm_release" "nginx_ingress" {
-  name       = "nginx-ingress-${random_id.nginx_ingress.hex}"
-  namespace  = "kube-system"
-  repository = "https://kubernetes.github.io/ingress-nginx"
-  chart      = "ingress-nginx"
-  version    = "4.0.6"
-
-  set {
-    name  = "controller.replicaCount"
-    value = 2
-  }
-
-  set {
-    name  = "controller.nodeSelector.kubernetes\\.io/os"
-    value = "linux"
-  }
-
-  set {
-    name  = "defaultBackend.nodeSelector.kubernetes\\.io/os"
-    value = "linux"
-  }
-
-  set {
-    name  = "controller.service.externalTrafficPolicy"
-    value = "Local"
-  }
-
-  set {
-    name  = "controller.admissionWebhooks.patch.nodeSelector.kubernetes\\.io/os"
-    value = "linux"
-  }
-
-  set {
-    name  = "controller.service.loadBalancerIP"
-    value = module.public_ip.public_ip_address
-  }
-}
-
-output "nginx_ingress_status" {
-  value = helm_release.nginx_ingress.status
+## Helm Release for NGINX Ingress Controller
+module "nginx_ingress_controller" {
+  name                = "nginx-ingress-${random_id.nginx_ingress.hex}"
+  source              = "./modules/helm-releases/nginx-ingress-controller"
+  namespace           = "kube-system"
+  replica_count       = 2
+  load_balancer_ip    = module.public_ip.ip_address
+  resource_group_name = azurerm_resource_group.rg.name
 }

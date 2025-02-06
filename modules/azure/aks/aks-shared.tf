@@ -68,6 +68,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     network_plugin = "azure"
     service_cidr   = var.service_cidr
     dns_service_ip = var.dns_service_ip
+    load_balancer_sku = "standard"
 
     load_balancer_profile {
       outbound_ip_address_ids = [var.frontend_ip_configuration_id]
