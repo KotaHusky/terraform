@@ -72,6 +72,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_profile {
       outbound_ip_address_ids = [var.frontend_ip_configuration_id]
     }
+
+    outbound_type = "loadBalancer"
   }
 
   identity {
