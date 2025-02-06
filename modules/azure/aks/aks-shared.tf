@@ -108,6 +108,13 @@ resource "azurerm_role_assignment" "aks_cluster_admin_role" {
   principal_id         = var.admin_group_object_id
 }
 
+# Role Assignment for Ingress Controller
+resource "azurerm_role_assignment" "ingress_controller_role" {
+  principal_id         = azurerm_user_assigned_identity.aks_identity.principal_id
+  role_definition_name = "Contributor"
+  scope                = var.resource_group_id # Assign scope to the resource group
+}
+
 output "kube_config" {
   value = azurerm_kubernetes_cluster.aks.kube_config[0]
 }

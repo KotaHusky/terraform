@@ -33,7 +33,7 @@ resource "helm_release" "nginx_ingress" {
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
   version    = "4.0.6"
-  timeout = 900 # 15 minutes timeout for Helm release
+  timeout = 180 # 3 minutes timeout for Helm release
   cleanup_on_fail = true
 
   set {

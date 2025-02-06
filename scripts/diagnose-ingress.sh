@@ -4,8 +4,6 @@
 RESOURCE_GROUP="aks-shared"
 AKS_CLUSTER="aks-shared-prod-cluster"
 NAMESPACE="webapps"
-INGRESS_NAME="homepage-ingress"
-SERVICE_NAME="homepage"
 INGRESS_CONTROLLER_NAMESPACE="kube-system"
 INGRESS_CONTROLLER_NAME="ingress-nginx"
 
@@ -27,6 +25,30 @@ if ! kubectl cluster-info &> /dev/null; then
 else
   echo -e "${GREEN}Connected to the Kubernetes cluster.${NC}"
 fi
+
+# Get all Helm releases
+echo -e "${YELLOW}Fetching all Helm releases...${NC}"
+HELM_RELEASES=$(helm list -q)
+
+# Find the ingress controller release
+INGRESS_RELEASE=""
+for release in $HELM_RELEASES; do
+  if [[ $release == *"ingress"* ]]; then
+    INGRESS_RELEASE=$release
+    break
+  fi
+done
+
+if [ -z "$INGRESS_RELEASE" ]; then
+  echo -e "${RED}No ingress controller release found.${NC}"
+  exit 1
+else
+  echo -e "${GREEN}Found ingress controller release: $INGRESS_RELEASE${NC}"
+fi
+
+# Get the ingress resource name and service name from the Helm release
+INGRESS_NAME=$(helm get values $INGRESS_RELEASE -o json | jq -r '.controller.ingressName')
+SERVICE_NAME=$(helm get values $INGRESS_RELEASE -o json | jq -r '.controller.serviceName')
 
 # Check if the ingress resource exists
 echo -e "${YELLOW}Checking if the ingress resource exists...${NC}"
