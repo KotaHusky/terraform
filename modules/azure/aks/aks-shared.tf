@@ -34,15 +34,9 @@ variable "resource_group_id" {
   description = "The ID of the resource group"
   type        = string
 }
-
-variable "load_balancer_id" {
-  description = "The ID of the load balancer"
-  type        = string
-}
-
-variable "frontend_ip_configuration_id" {
-  description = "The ID of the frontend IP configuration of the load balancer"
-  type        = string
+variable "outbound_ip_address_ids" {
+  description = "The IDs of the outbound IP addresses"
+  type        = list(string)
 }
 
 resource "azurerm_user_assigned_identity" "aks_identity" {
@@ -71,7 +65,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku = "standard"
 
     load_balancer_profile {
-      outbound_ip_address_ids = [var.frontend_ip_configuration_id]
+      outbound_ip_address_ids = var.outbound_ip_address_ids
     }
 
     outbound_type = "loadBalancer"

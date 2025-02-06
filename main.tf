@@ -171,8 +171,7 @@ module "aks" {
   service_cidr          = var.service_cidr
   dns_service_ip        = var.dns_service_ip
   resource_group_id     = azurerm_resource_group.rg.id
-  load_balancer_id      = module.load_balancer.load_balancer_id
-  frontend_ip_configuration_id = module.load_balancer.frontend_ip_configuration_id
+  outbound_ip_address_ids = [module.public_ip.id]
 }
 
 ## Azure Container Registry (ACR) Module
@@ -209,6 +208,11 @@ module "nginx_ingress_controller" {
   source              = "./modules/helm-releases/nginx-ingress-controller"
   namespace           = "kube-system"
   replica_count       = 2
-  load_balancer_ip    = module.public_ip.ip_address
+  load_balancer_ip    = module.public_ip.public_ip_address
   resource_group_name = azurerm_resource_group.rg.name
 }
+
+# module "nginx-controller" {
+#   source  = "terraform-iaac/nginx-controller/helm"
+#   ip_address = module.public_ip.public_ip_address
+# }
