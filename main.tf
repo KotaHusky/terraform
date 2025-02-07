@@ -90,27 +90,33 @@ variable "tags" {
 }
 
 variable "vnet_cidr" {
-  description = "The CIDR block for the virtual network"
+  description = "The CIDR block for the virtual network. Should encompass the AKS subnet."
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "aks_subnet_cidr" {
-  description = "The CIDR block for the AKS subnet"
+  description = "The CIDR block for the AKS subnet Should be a subset of the vnet_cidr."
   type        = string
   default     = "10.0.1.0/24"
 }
 
 variable "service_cidr" {
-  description = "The CIDR block for the Kubernetes service network"
+  description = "The CIDR block for the Kubernetes service network. Should not overlap with vnet_cidr."
   type        = string
-  default     = "10.0.3.0/24"
+  default     = "10.1.0.0/24"
 }
 
 variable "dns_service_ip" {
-  description = "The IP address within the service CIDR to use for DNS"
+  description = "The IP address within the service CIDR to use for DNS. Should be within service_cidr."
   type        = string
-  default     = "10.0.3.10"
+  default     = "10.1.0.10"
+}
+
+variable "pod_cidr" {
+  description = "The CIDR block for the Kubernetes pod network. Should not overlap with vnet_cidr."
+  type        = string
+  default     = "10.2.0.0/16"
 }
 
 # Resource Group
@@ -165,10 +171,11 @@ module "aks" {
   source                = "./modules/azure/aks"
   resource_group_name   = azurerm_resource_group.rg.name
   location              = var.location
-  name                  = "${var.resource_name_prefix}-prod"
+  name                  = var.resource_name_prefix
   admin_group_object_id = module.aks_admins.aks_admins_group_id
   subnet_id             = module.subnet.subnet_ids["${var.resource_name_prefix}-aks-subnet"]
   service_cidr          = var.service_cidr
+  pod_cidr              = var.pod_cidr
   dns_service_ip        = var.dns_service_ip
   resource_group_id     = azurerm_resource_group.rg.id
   outbound_ip_address_ids = [module.public_ip.id]

@@ -25,6 +25,11 @@ variable "service_cidr" {
   type        = string
 }
 
+variable "pod_cidr" {
+  description = "The CIDR block for the Kubernetes pod network"
+  type        = string
+}
+
 variable "dns_service_ip" {
   description = "The IP address within the service CIDR to use for DNS"
   type        = string
@@ -59,9 +64,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   network_profile {
-    network_plugin = "azure"
+    network_plugin = "kubenet"
     service_cidr   = var.service_cidr
     dns_service_ip = var.dns_service_ip
+    pod_cidr       = var.pod_cidr
     load_balancer_sku = "standard"
 
     load_balancer_profile {
