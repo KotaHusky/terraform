@@ -26,6 +26,11 @@ variable "cloudflare_api_token" {
   sensitive   = true
 }
 
+variable "cloudflare_zone_id" {
+  description = "The Zone ID for the Cloudflare domain"
+  type        = string
+}
+
 # Create the Kubernetes secret to store the Cloudflare API token
 resource "kubernetes_secret" "cloudflare_api_token" {
   metadata {
@@ -34,7 +39,7 @@ resource "kubernetes_secret" "cloudflare_api_token" {
   }
 
   data = {
-    api-token = base64encode(var.cloudflare_api_token)
+    api-token = var.cloudflare_api_token
   }
 
   type = "Opaque"
@@ -67,5 +72,10 @@ resource "helm_release" "cluster_issuer" {
   set {
     name  = "dns_credentials_secret"
     value = "cloudflare-api-token-secret"
+  }
+
+  set {
+    name  = "cloudflare_zone_id"
+    value = var.cloudflare_zone_id
   }
 }

@@ -14,3 +14,4 @@ spec:
             apiTokenSecretRef:
               name: {{ .Values.dns_credentials_secret }}
               key: api-token
+            zoneID: {{ .Values.cloudflare_zone_id }}

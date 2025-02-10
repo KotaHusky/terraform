@@ -134,6 +134,11 @@ variable "cloudflare_api_token" {
   type        = string
 }
 
+variable "cloudflare_zone_id" {
+  description = "The Cloudflare zone ID for the domain"
+  type        = string
+}
+
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_name_prefix
@@ -258,6 +263,7 @@ module "letsencrypt_cluster_issuer" {
   acme_server            = "https://acme-v02.api.letsencrypt.org/directory"
   dns_provider           = "cloudflare"
   cloudflare_api_token   = var.cloudflare_api_token
+  cloudflare_zone_id     = var.cloudflare_zone_id
 }
 
 ## Certificate Module

@@ -6,8 +6,8 @@ AKS_CLUSTER="aks-shared-cluster"
 NAMESPACE="cert-manager"
 CERT_NAMESPACE="webapps"
 CLUSTER_ISSUER_NAME="letsencrypt-dns"
-CERTIFICATE_NAME="wildcard-kota-dog-tls"
 DNS_NAME="kota.dog"
+CERTIFICATE_NAME="wildcard-${DNS_NAME}-tls"
 MANAGED_RG="MC_${RESOURCE_GROUP}_${AKS_CLUSTER}_eastus"
 
 # Colors
@@ -64,6 +64,11 @@ else
   echo -e "${GREEN}ClusterIssuer $CLUSTER_ISSUER_NAME is ready.${NC}"
 fi
 
+# List all certificates in the specified namespace
+echo -e "${YELLOW}Listing all certificates in namespace $CERT_NAMESPACE...${NC}"
+echo "kubectl get certificates -n $CERT_NAMESPACE"
+kubectl get certificates -n $CERT_NAMESPACE
+
 # Check the Certificate resource configuration
 echo -e "${YELLOW}Checking the Certificate resource configuration...${NC}"
 echo "kubectl get certificate $CERTIFICATE_NAME -n $CERT_NAMESPACE -o yaml"
@@ -79,6 +84,12 @@ echo -e "${YELLOW}Checking the status of the Certificate...${NC}"
 CERTIFICATE_STATUS=$(kubectl get certificate $CERTIFICATE_NAME -n $CERT_NAMESPACE -o jsonpath="{.status.conditions[?(@.type=='Ready')].status}")
 if [ "$CERTIFICATE_STATUS" != "True" ]; then
   echo -e "${RED}Certificate $CERTIFICATE_NAME is not ready.${NC}"
+  echo -e "${YELLOW}Checking events related to the Certificate...${NC}"
+  echo "kubectl get events -n $CERT_NAMESPACE --field-selector involvedObject.name=$CERTIFICATE_NAME"
+  kubectl get events -n $CERT_NAMESPACE --field-selector involvedObject.name=$CERTIFICATE_NAME
+  echo -e "${YELLOW}Checking cert-manager logs...${NC}"
+  echo "kubectl logs -l app.kubernetes.io/name=cert-manager -n $NAMESPACE"
+  kubectl logs -l app.kubernetes.io/name=cert-manager -n $NAMESPACE
   exit 1
 else
   echo -e "${GREEN}Certificate $CERTIFICATE_NAME is ready.${NC}"
@@ -99,6 +110,17 @@ if ! kubectl get secret $SECRET_NAME -n $CERT_NAMESPACE &> /dev/null; then
 else
   echo -e "${GREEN}Secret $SECRET_NAME found.${NC}"
 fi
+
+# Check events related to the Certificate
+echo -e "${YELLOW}Checking events related to the Certificate...${NC}"
+echo "kubectl get events -n $CERT_NAMESPACE --field-selector involvedObject.name=$CERTIFICATE_NAME"
+kubectl get events -n $CERT_NAMESPACE --field-selector involvedObject.name=$CERTIFICATE_NAME
+
+# Check the CertificateRequest resource
+echo -e "${YELLOW}Checking the CertificateRequest resource...${NC}"
+CERTIFICATE_REQUEST_NAME=$(kubectl get certificaterequest -n $CERT_NAMESPACE -o jsonpath="{.items[?(@.metadata.annotations['cert-manager.io/certificate-name']=='$CERTIFICATE_NAME')].metadata.name}")
+echo "kubectl get certificaterequest $CERTIFICATE_REQUEST_NAME -n $CERT_NAMESPACE -o yaml"
+kubectl get certificaterequest $CERTIFICATE_REQUEST_NAME -n $CERT_NAMESPACE -o yaml
 
 # Perform curl tests to verify the certificate
 echo -e "${YELLOW}Performing curl tests to verify the certificate...${NC}"
