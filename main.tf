@@ -119,6 +119,11 @@ variable "pod_cidr" {
   default     = "10.2.0.0/16"
 }
 
+variable "email" {
+  description = "The email address for Let's Encrypt registration"
+  type        = string
+}
+
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_name_prefix
@@ -132,6 +137,12 @@ resource "azurerm_resource_group" "rg" {
 resource "kubernetes_namespace" "webapps" {
   metadata {
     name = "webapps"
+  }
+}
+
+resource "kubernetes_namespace" "ingress_nginx" {
+  metadata {
+    name = "ingress-nginx"
   }
 }
 
@@ -204,7 +215,7 @@ module "public_ip" {
 ## Random ID for Unique Helm Release Name
 resource "random_id" "nginx_ingress" {
   keepers = {
-    namespace = "kube-system"
+    namespace = "ingress-nginx"
   }
   byte_length = 4
 }
@@ -213,13 +224,27 @@ resource "random_id" "nginx_ingress" {
 module "nginx_ingress_controller" {
   name                = "nginx-ingress-${random_id.nginx_ingress.hex}"
   source              = "./modules/helm-releases/nginx-ingress-controller"
-  namespace           = "kube-system"
+  namespace           = "ingress-nginx"
   replica_count       = 2
   load_balancer_ip    = module.public_ip.public_ip_address
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# module "nginx-controller" {
-#   source  = "terraform-iaac/nginx-controller/helm"
-#   ip_address = module.public_ip.public_ip_address
+# ## Cert-Manager Module
+# ## Used alongside the Let's Encrypt Cluster Issuer Module to automate certificate management
+# module "cert_manager" {
+#   source          = "./modules/cert-manager"
+#   namespace       = "cert-manager"
+#   chart_version   = "v1.12.0"
+#   install_crds    = true
+# }
+
+# ## Let's Encrypt Cluster Issuer Module
+# # Used to configure a ClusterIssuer for Let's Encrypt, enabling automatic certificate issuance and renewal
+# module "letsencrypt_cluster_issuer" {
+#   source         = "./modules/cert-manager-cluster-issuer"
+#   name           = "letsencrypt-http"
+#   email          = var.email
+#   acme_server    = "https://acme-v02.api.letsencrypt.org/directory"
+#   ingress_class  = "nginx"
 # }
