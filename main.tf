@@ -124,6 +124,16 @@ variable "email" {
   type        = string
 }
 
+variable "domain" {
+  description = "The domain name for the certificate"
+  type        = string
+}
+
+variable "cloudflare_api_token" {
+  description = "The Cloudflare API token for DNS validation"
+  type        = string
+}
+
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_name_prefix
@@ -223,28 +233,37 @@ resource "random_id" "nginx_ingress" {
 ## Helm Release for NGINX Ingress Controller
 module "nginx_ingress_controller" {
   name                = "nginx-ingress-${random_id.nginx_ingress.hex}"
-  source              = "./modules/helm-releases/nginx-ingress-controller"
+  source              = "./modules/helm/nginx-ingress-controller"
   namespace           = "ingress-nginx"
   replica_count       = 2
   load_balancer_ip    = module.public_ip.public_ip_address
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# ## Cert-Manager Module
-# ## Used alongside the Let's Encrypt Cluster Issuer Module to automate certificate management
-# module "cert_manager" {
-#   source          = "./modules/cert-manager"
-#   namespace       = "cert-manager"
-#   chart_version   = "v1.12.0"
-#   install_crds    = true
-# }
+## Cert-Manager Module
+## Used alongside the Let's Encrypt Cluster Issuer Module to automate certificate management
+module "cert_manager" {
+  source          = "./modules/helm/cert-manager"
+  namespace       = "cert-manager"
+  chart_version   = "v1.17.0"
+  install_crds    = true
+}
 
-# ## Let's Encrypt Cluster Issuer Module
-# # Used to configure a ClusterIssuer for Let's Encrypt, enabling automatic certificate issuance and renewal
-# module "letsencrypt_cluster_issuer" {
-#   source         = "./modules/cert-manager-cluster-issuer"
-#   name           = "letsencrypt-http"
-#   email          = var.email
-#   acme_server    = "https://acme-v02.api.letsencrypt.org/directory"
-#   ingress_class  = "nginx"
-# }
+## Let's Encrypt Cluster Issuer Module
+# Used to configure a ClusterIssuer for Let's Encrypt, enabling automatic certificate issuance and renewal
+module "letsencrypt_cluster_issuer" {
+  source                 = "./modules/helm/cert-manager-cluster-issuer"
+  namespace              = "cert-manager"
+  email                  = var.email
+  acme_server            = "https://acme-v02.api.letsencrypt.org/directory"
+  dns_provider           = "cloudflare"
+  cloudflare_api_token   = var.cloudflare_api_token
+}
+
+## Certificate Module
+# Used to create a Certificate resource for a specific domain
+module "certificate" {
+  source     = "./modules/kubernetes_manifests/certificate"
+  namespace  = "webapps"
+  domain     = "kota.dog"
+}
