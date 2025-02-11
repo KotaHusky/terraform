@@ -19,6 +19,34 @@ NC='\033[0m' # No Color
 # Clear the terminal for cleaner output
 clear
 
+# Function to rehydrate certificate resources
+rehydrate_cert_resources() {
+  echo -e "${YELLOW}Rehydrating certificate resources...${NC}"
+  echo "kubectl delete certificate $CERTIFICATE_NAME -n $CERT_NAMESPACE"
+  kubectl delete certificate $CERTIFICATE_NAME -n $CERT_NAMESPACE
+  echo "kubectl delete certificaterequest -n $CERT_NAMESPACE --all"
+  kubectl delete certificaterequest -n $CERT_NAMESPACE --all
+  echo "kubectl delete challenge -n $CERT_NAMESPACE --all"
+  kubectl delete challenge -n $CERT_NAMESPACE --all
+  echo "kubectl delete order -n $CERT_NAMESPACE --all"
+  kubectl delete order -n $CERT_NAMESPACE --all
+  echo -e "${GREEN}Certificate resources rehydrated.${NC}"
+}
+
+# Check for rehydrate flag
+REHYDRATE=false
+while getopts "r" opt; do
+  case ${opt} in
+    r )
+      REHYDRATE=true
+      ;;
+    \? )
+      echo "Usage: cmd [-r]"
+      exit 1
+      ;;
+  esac
+done
+
 # Update kubectl context using Azure CLI
 echo -e "${YELLOW}Updating kubectl context using Azure CLI...${NC}"
 echo "az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing"
@@ -62,6 +90,11 @@ if [ "$CLUSTER_ISSUER_STATUS" != "True" ]; then
   exit 1
 else
   echo -e "${GREEN}ClusterIssuer $CLUSTER_ISSUER_NAME is ready.${NC}"
+fi
+
+# Rehydrate certificate resources if the flag is set
+if [ "$REHYDRATE" = true ]; then
+  rehydrate_cert_resources
 fi
 
 # List all certificates in the specified namespace
