@@ -9,6 +9,7 @@
 This repository contains Terraform configurations for setting up an Azure Kubernetes Service (AKS) cluster with supporting infrastructure. It includes modules for Azure AD, AKS, ACR, and networking. The setup also integrates automated certificate management with cert-manager and Let's Encrypt. Helm is used for deploying applications and managing Kubernetes resources.
 
 ## Table of Contents <!-- omit in toc -->
+
 - [About](#about)
   - [Who is this for?](#who-is-this-for)
   - [Estimated Cost](#estimated-cost)
@@ -63,18 +64,21 @@ Helm is a package manager for Kubernetes that simplifies the deployment and mana
 
 **Install Terraform:**
 Download Terraform from the [official website](https://www.terraform.io/downloads). Verify installation:
+
 ```bash
 terraform --version
 ```
 
 **Install Azure CLI:**
 Install Azure CLI from [Microsoft Docs](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli). Log in to Azure:
+
 ```bash
 az login
 ```
 
 **Configure Access to Azure:**
 Ensure you have sufficient permissions to create resources in Azure. Set the desired subscription:
+
 ```bash
 az account set --subscription "<subscription-id>"
 ```
@@ -85,6 +89,7 @@ az account set --subscription "<subscription-id>"
 
 **Clone the Repository:**
 Clone this repository to your local machine:
+
 ```bash
 git clone https://github.com/yourusername/terraform-aks-setup.git
 cd terraform-aks-setup
@@ -92,8 +97,8 @@ cd terraform-aks-setup
 
 ### Create a `terraform.tfvars` File
 
-**Create a [terraform.tfvars](https://www.terraform.io/docs/language/values/variables.html#variable-definitions-tfvars-files) File:**
 Create a `terraform.tfvars` file in the root of the repository to define the necessary variables:
+
 ```hcl
 subscription_id       = ""
 location              = ""
@@ -128,51 +133,52 @@ You can find most of this information in the Azure portal or by using the Azure 
 
 ### Initialize Terraform
 
-**Initialize Terraform:**
 Download necessary providers and set up the environment:
+
 ```bash
 terraform init
 ```
 
 ### Validate the Configuration
 
-**Validate the Configuration:**
 Ensure your configuration is error-free:
+
 ```bash
 terraform validate
 ```
 
 ### Plan the Deployment
 
-**Plan the Deployment:**
 Preview the changes Terraform will apply:
+
 ```bash
 terraform plan
 ```
 
 ### Deploy the Resources
 
-**Deploy the Resources:**
 Apply the configuration to create the AKS cluster and related resources:
+
 ```bash
 terraform apply
 ```
+
 Confirm the action by typing `yes` when prompted. Go get a coffee, this will take a while. ☕️
 
 ## Accessing the AKS Cluster
 
 ### Fetch AKS Cluster Credentials
 
-**Fetch AKS Cluster Credentials:**
 Configure `kubectl` to connect to your AKS cluster:
+
 ```bash
 az aks get-credentials --resource-group <resource-group-name> --name <aks-cluster-name>
 ```
 
 ### Verify the Cluster
 
-**Verify the Cluster:**
 Ensure the cluster is accessible:
+
 ```bash
 kubectl get nodes
 ```
@@ -181,22 +187,20 @@ kubectl get nodes
 
 ### Create an Azure Storage Account
 
-**Create an Azure Storage Account:**
 ```bash
 az storage account create --name <storage-account-name> --resource-group <resource-group-name> --location "East US" --sku Standard_LRS
 ```
 
 ### Create a Storage Container
 
-**Create a Storage Container:**
 ```bash
 az storage container create --name tfstate --account-name <storage-account-name>
 ```
 
 ### Configure Backend in `main.tf`
 
-**Configure Backend in `main.tf`:**
 Update your `main.tf` file to include the backend configuration:
+
 ```hcl
 terraform {
   backend "azurerm" {
@@ -210,11 +214,12 @@ terraform {
 
 ## Cleaning Up
 
-**Cleaning Up:**
 To clean up the resources created by Terraform, run:
+
 ```bash
 terraform destroy
 ```
+
 Confirm the action by typing `yes` when prompted.
 
 ## Additional Resources
