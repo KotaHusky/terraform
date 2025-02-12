@@ -287,7 +287,7 @@ module "games" {
   source              = "./modules/_solutions/games"
   resource_group      = azurerm_resource_group.rg.name
   location            = var.location
-  storage_account_name = "${var.resource_name_prefix}gamesstorage"
+  storage_account_name = "gamesstorage"
   storage_share_name   = "games"
   tls_secret_name      = module.certificate.tls_secret_name
   domain              = "games.${var.domain}"

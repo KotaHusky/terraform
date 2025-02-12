@@ -4,8 +4,12 @@ variable "resource_group" {}
 variable "location" {}
 variable "namespace" {}
 
+resource "random_id" "storage_suffix" {
+  byte_length = 8
+}
+
 resource "azurerm_storage_account" "storage" {
-  name                     = var.storage_account_name
+  name                     = "${var.storage_account_name}${random_id.storage_suffix.hex}"
   resource_group_name      = var.resource_group
   location                 = var.location
   account_tier             = "Standard"
