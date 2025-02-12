@@ -161,8 +161,11 @@ resource "kubernetes_namespace" "ingress_nginx" {
   }
 }
 
+## ======================================================================
 # Modules
-## Virtual Network Module
+## ======================================================================
+
+# Virtual Network Module
 module "vnet" {
   source              = "./modules/azure/vnet"
   name                = "${var.resource_name_prefix}-vnet"
@@ -172,7 +175,7 @@ module "vnet" {
   tags                = var.tags
 }
 
-## Subnet Module
+# Subnet Module
 module "subnet" {
   source              = "./modules/azure/subnet"
   resource_group_name = azurerm_resource_group.rg.name
@@ -186,13 +189,13 @@ module "subnet" {
   ]
 }
 
-## AKS Admins Module
+# AKS Admins Module
 module "aks_admins" {
   source                = "./modules/azure/entra-id"
   admin_user_object_id  = var.admin_user_object_id
 }
 
-## AKS Cluster Module
+# AKS Cluster Module
 module "aks" {
   source                = "./modules/azure/aks"
   resource_group_name   = azurerm_resource_group.rg.name
@@ -207,7 +210,7 @@ module "aks" {
   outbound_ip_address_ids = [module.public_ip.id]
 }
 
-## Azure Container Registry (ACR) Module
+# Azure Container Registry (ACR) Module
 module "acr" {
   source              = "./modules/azure/acr"
   resource_group_name = azurerm_resource_group.rg.name
@@ -216,7 +219,7 @@ module "acr" {
   kubelet_identity    = module.aks.kubelet_identity
 }
 
-## Public IP Module
+# Public IP Module
 module "public_ip" {
   source              = "./modules/azure/public-ip"
   name                = "${var.resource_name_prefix}-public-ip"
@@ -227,7 +230,7 @@ module "public_ip" {
   tags                = var.tags
 }
 
-## Random ID for Unique Helm Release Name
+# Random ID for Unique Helm Release Name
 resource "random_id" "nginx_ingress" {
   keepers = {
     namespace = "ingress-nginx"
@@ -235,7 +238,7 @@ resource "random_id" "nginx_ingress" {
   byte_length = 4
 }
 
-## Helm Release for NGINX Ingress Controller
+# Helm Release for NGINX Ingress Controller
 module "nginx_ingress_controller" {
   name                = "nginx-ingress-${random_id.nginx_ingress.hex}"
   source              = "./modules/helm/nginx-ingress-controller"
@@ -245,8 +248,8 @@ module "nginx_ingress_controller" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-## Cert-Manager Module
-## Used alongside the Let's Encrypt Cluster Issuer Module to automate certificate management
+# Cert-Manager Module
+# Used alongside the Let's Encrypt Cluster Issuer Module to automate certificate management
 module "cert_manager" {
   source          = "./modules/helm/cert-manager"
   namespace       = "cert-manager"
@@ -254,7 +257,7 @@ module "cert_manager" {
   install_crds    = true
 }
 
-## Let's Encrypt Cluster Issuer Module
+# Let's Encrypt Cluster Issuer Module
 # Used to configure a ClusterIssuer for Let's Encrypt, enabling automatic certificate issuance and renewal
 module "letsencrypt_cluster_issuer" {
   source                 = "./modules/helm/cert-manager-cluster-issuer"
@@ -266,10 +269,26 @@ module "letsencrypt_cluster_issuer" {
   cloudflare_zone_id     = var.cloudflare_zone_id
 }
 
-## Certificate Module
+# Certificate Module
 # Used to create a Certificate resource for a specific domain
 module "certificate" {
   source     = "./modules/kubernetes_manifests/certificate"
-  namespace  = "webapps"
-  domain     = "kota.dog"
+  namespace  = "cert-manager"
+  domain     = var.domain
+}
+
+# ======================================================================
+# Solutions
+# These modules are used to deploy specific applications or services
+# ======================================================================
+
+# Games Module
+module "games" {
+  source              = "./modules/_solutions/games"
+  resource_group      = azurerm_resource_group.rg.name
+  location            = var.location
+  storage_account_name = "${var.resource_name_prefix}gamesstorage"
+  storage_share_name   = "games"
+  tls_secret_name      = module.certificate.tls_secret_name
+  domain              = "games.${var.domain}"
 }
