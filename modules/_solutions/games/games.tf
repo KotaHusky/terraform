@@ -68,51 +68,5 @@ module "minecraft_server" {
   resource_group       = var.resource_group
   location             = var.location
   tls_secret_name      = var.tls_secret_name
-  pvc_name             = kubernetes_persistent_volume_claim.games_storage_claim.metadata[0].name
-  domain               = "minecraft.${var.domain}"
-}
-
-resource "kubernetes_service" "minecraft" {
-  metadata {
-    name      = "minecraft"
-    namespace = kubernetes_namespace.games.metadata[0].name
-  }
-  spec {
-    selector = {
-      app = "minecraft"
-    }
-    port {
-      port        = 25565
-      target_port = 25565
-    }
-  }
-}
-
-resource "kubernetes_ingress" "minecraft" {
-  metadata {
-    name      = "minecraft"
-    namespace = kubernetes_namespace.games.metadata[0].name
-    annotations = {
-      "kubernetes.io/ingress.class" = "nginx"
-      "cert-manager.io/cluster-issuer" = "letsencrypt-dns"
-    }
-  }
-  spec {
-    tls {
-      hosts      = ["minecraft.${var.domain}"]
-      secret_name = var.tls_secret_name
-    }
-    rule {
-      host = "minecraft.${var.domain}"
-      http {
-        path {
-          path = "/"
-          backend {
-            service_name = kubernetes_service.minecraft.metadata[0].name
-            service_port = 25565
-          }
-        }
-      }
-    }
-  }
+  domain               = var.domain
 }

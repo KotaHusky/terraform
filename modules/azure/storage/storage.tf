@@ -5,7 +5,10 @@ variable "location" {}
 variable "namespace" {}
 
 resource "random_id" "storage_suffix" {
-  byte_length = 8
+  byte_length = 4
+  keepers = {
+    name = var.storage_account_name
+  }
 }
 
 resource "azurerm_storage_account" "storage" {
@@ -14,12 +17,16 @@ resource "azurerm_storage_account" "storage" {
   location                 = var.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
+
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 resource "azurerm_storage_share" "storage" {
   name                 = var.storage_share_name
-  storage_account_id = azurerm_storage_account.storage.id
-  quota               = 10
+  storage_account_id   = azurerm_storage_account.storage.id
+  quota                = 10
 }
 
 resource "kubernetes_persistent_volume" "storage" {
