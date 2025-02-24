@@ -1,7 +1,7 @@
 variable "namespace" {
   description = "The namespace to create the certificate"
   type        = string
-  default     = "webapps"
+  default     = "cert-manager"
 }
 
 variable "domain" {
@@ -34,4 +34,8 @@ resource "kubernetes_manifest" "certificate" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+output "tls_secret_name" {
+  value = kubernetes_manifest.certificate.manifest.spec.secretName
 }
