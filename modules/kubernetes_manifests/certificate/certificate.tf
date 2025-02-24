@@ -31,9 +31,9 @@ resource "kubernetes_manifest" "certificate" {
     }
   }
 
-  # lifecycle {
-  #   prevent_destroy = true
-  # }
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 output "tls_secret_name" {

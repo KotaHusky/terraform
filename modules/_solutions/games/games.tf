@@ -8,7 +8,7 @@ variable "storage_share_name" {
   type        = string
 }
 
-variable "resource_group" {
+variable "resource_group_name" {
   description = "The name of the resource group."
   type        = string
 }
@@ -37,24 +37,9 @@ module "games_storage" {
   source               = "../../azure/storage"
   storage_account_name = var.storage_account_name
   storage_share_name   = var.storage_share_name
-  resource_group       = var.resource_group
+  resource_group_name       = var.resource_group_name
   location             = var.location
   namespace            = kubernetes_namespace.games.metadata[0].name
-}
-
-resource "kubernetes_persistent_volume_claim" "games_storage_claim" {
-  metadata {
-    name      = "games-storage-claim"
-    namespace = kubernetes_namespace.games.metadata[0].name
-  }
-  spec {
-    access_modes = ["ReadWriteOnce"]
-    resources {
-      requests = {
-        storage = "100Gi"
-      }
-    }
-  }
 }
 
 ## Games
@@ -63,10 +48,7 @@ resource "kubernetes_persistent_volume_claim" "games_storage_claim" {
 module "minecraft_server" {
   source               = "./minecraft-server"
   namespace            = kubernetes_namespace.games.metadata[0].name
-  storage_account_name = var.storage_account_name
-  storage_share_name   = var.storage_share_name
-  resource_group       = var.resource_group
-  location             = var.location
+  pvc_name             = "minecraft-pvc"
   tls_secret_name      = var.tls_secret_name
   domain               = var.domain
 }

@@ -3,14 +3,17 @@ variable "namespace" {
   default = "games"
 }
 
-variable "storage_account_name" {}
-variable "storage_share_name" {}
-variable "resource_group" {}
-variable "location" {}
+variable "pvc_name" {
+  description = "The name of the Persistent Volume Claim"
+  type        = string
+  default     = "minecraft-pvc"
+}
+
 variable "tls_secret_name" {
   description = "The name of the TLS secret"
   type        = string
 }
+
 variable "domain" {
   type        = string
 }
@@ -37,14 +40,14 @@ resource "random_id" "pvc_suffix" {
 
 resource "kubernetes_persistent_volume_claim" "minecraft" {
   metadata {
-    name      = "minecraft-pvc"
+    name      = "${var.pvc_name}-${random_id.pvc_suffix.hex}"
     namespace = var.namespace
   }
   spec {
     access_modes = ["ReadWriteOnce"]
     resources {
       requests = {
-        storage = "10Gi"
+        storage = "3Gi"
       }
     }
   }
@@ -102,7 +105,7 @@ resource "kubernetes_deployment" "minecraft" {
         volume {
           name = "minecraft-storage"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.minecraft.metadata[0].name
+            claim_name = "${var.pvc_name}-${random_id.pvc_suffix.hex}"
           }
         }
       }
@@ -127,15 +130,16 @@ resource "kubernetes_service" "minecraft" {
   }
 }
 
-resource "kubernetes_ingress" "minecraft" {
+resource "kubernetes_ingress_v1" "minecraft" {
   metadata {
     name      = "minecraft"
     namespace = var.namespace
     annotations = {
-      "kubernetes.io/ingress.class" = "nginx"
-      "cert-manager.io/cluster-issuer" = "letsencrypt-dns"
+      "kubernetes.io/ingress.class"       = "nginx"
+      "cert-manager.io/cluster-issuer"    = "letsencrypt-dns"
     }
   }
+
   spec {
     ingress_class_name = "nginx"
     tls {
@@ -146,10 +150,15 @@ resource "kubernetes_ingress" "minecraft" {
       host = "minecraft.${var.domain}"
       http {
         path {
-          path = "/"
+          path     = "/"
+          path_type = "Prefix"
           backend {
-            service_name = kubernetes_service.minecraft.metadata[0].name
-            service_port = 25565
+            service {
+              name = kubernetes_service.minecraft.metadata[0].name
+              port {
+                number = 25565
+              }
+            }
           }
         }
       }

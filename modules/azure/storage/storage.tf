@@ -1,6 +1,6 @@
 variable "storage_account_name" {}
 variable "storage_share_name" {}
-variable "resource_group" {}
+variable "resource_group_name" {}
 variable "location" {}
 variable "namespace" {}
 
@@ -13,7 +13,7 @@ resource "random_id" "storage_suffix" {
 
 resource "azurerm_storage_account" "storage" {
   name                     = "${var.storage_account_name}${random_id.storage_suffix.hex}"
-  resource_group_name      = var.resource_group
+  resource_group_name      = var.resource_group_name
   location                 = var.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
@@ -46,23 +46,4 @@ resource "kubernetes_persistent_volume" "storage" {
       }
     }
   }
-}
-
-resource "kubernetes_persistent_volume_claim" "storage" {
-  metadata {
-    name      = var.storage_share_name
-    namespace = var.namespace
-  }
-  spec {
-    access_modes = ["ReadWriteMany"]
-    resources {
-      requests = {
-        storage = "10Gi"
-      }
-    }
-  }
-}
-
-output "pvc_name" {
-  value = kubernetes_persistent_volume_claim.storage.metadata[0].name
 }
