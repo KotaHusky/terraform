@@ -8,7 +8,7 @@ INGRESS_CONTROLLER_NAMESPACE="ingress-nginx"
 INGRESS_CONTROLLER_NAME="ingress-nginx"
 INGRESS_RESOURCE_NAME="homepage-ingress"
 SERVICE_NAME="homepage"
-DNS_NAME="dev.kota.dog"
+DNS_NAME=""
 MANAGED_RG="MC_${RESOURCE_GROUP}_${AKS_CLUSTER}_eastus"
 
 # Colors

@@ -16,6 +16,9 @@ This repository contains Terraform configurations for setting up an Azure Kubern
   - [Why use Terraform?](#why-use-terraform)
   - [Why use AKS?](#why-use-aks)
   - [Why use Helm?](#why-use-helm)
+- [C4 Diagram](#c4-diagram)
+- [Resource Descriptions](#resource-descriptions)
+- [Project Directory Structure](#project-directory-structure)
 - [Prerequisites](#prerequisites)
 - [Setting Up Terraform Configuration](#setting-up-terraform-configuration)
   - [Clone the Repository](#clone-the-repository)
@@ -29,6 +32,10 @@ This repository contains Terraform configurations for setting up an Azure Kubern
 - [Accessing the AKS Cluster](#accessing-the-aks-cluster)
   - [Fetch AKS Cluster Credentials](#fetch-aks-cluster-credentials)
   - [Verify the Cluster](#verify-the-cluster)
+- [Route Traffic to the Cluster](#route-traffic-to-the-cluster)
+  - [Configure DNS](#configure-dns)
+- [Deploying Applications](#deploying-applications)
+  - [Deploying Applications with K8s Manifests](#deploying-applications-with-k8s-manifests)
 - [Optional: Store Terraform State Remotely](#optional-store-terraform-state-remotely)
   - [Create an Azure Storage Account](#create-an-azure-storage-account)
   - [Create a Storage Container](#create-a-storage-container)
@@ -60,7 +67,109 @@ AKS is a managed Kubernetes service that simplifies the deployment, management, 
 
 Helm is a package manager for Kubernetes that simplifies the deployment and management of applications on AKS. It allows for easy installation, upgrading, and rollback of applications using pre-configured charts. Helm streamlines the deployment process and enhances the overall management of Kubernetes resources.
 
+## C4 Diagram
+```mermaid
+flowchart TB
+    subgraph Azure
+        direction TB
+        subgraph ResourceGroup
+            direction TB
+            AKSCluster["AKS Cluster"]
+            ACR["Azure Container Registry"]
+            VNet["Virtual Network"]
+            Subnet["Subnet"]
+            PublicIP["Public IP"]
+            UserAssignedIdentity["User Assigned Identity"]
+            RoleAssignment["Role Assignment"]
+        end
+        AzureAD["Azure Active Directory"]
+    end
+
+    subgraph AKSCluster
+        direction TB
+        Namespace["Namespace"]
+        Workloads["Workloads"]
+        Services["Services"]
+        Ingress["Ingress"]
+        ConfigMaps["ConfigMaps"]
+        Secrets["Secrets"]
+    end
+
+    subgraph GitHub
+        direction TB
+        GitHubActions["GitHub Actions"]
+    end
+
+    subgraph External
+        direction TB
+        Cloudflare["Cloudflare"]
+    end
+
+    subgraph User
+        direction TB
+        DevOpsEngineer["DevOps Engineer"]
+    end
+
+    DevOpsEngineer -->|Configures| GitHubActions
+    GitHubActions -->|Deploys| AKSCluster
+    GitHubActions -->|Pushes Images| ACR
+    GitHubActions -->|Configures| AzureAD
+    GitHubActions -->|Configures| Cloudflare
+    AKSCluster -->|Uses| VNet
+    VNet -->|Contains| Subnet
+    AKSCluster -->|Uses| PublicIP
+    AKSCluster -->|Uses| UserAssignedIdentity
+    AKSCluster -->|Has| RoleAssignment
+    RoleAssignment -->|Assigned to| AzureAD
+    AKSCluster -->|Contains| Namespace
+    Namespace -->|Contains| Workloads
+    Namespace -->|Contains| Services
+    Namespace -->|Contains| Ingress
+    Namespace -->|Contains| ConfigMaps
+    Namespace -->|Contains| Secrets
+```
+
+## Resource Descriptions
+
+- **Azure Subscription**: The Azure billing account where all resources are created.
+- **Resource Group**: A container that holds related resources for an Azure solution.
+- **Virtual Network**: A logically isolated network in Azure.
+- **AKS Cluster**: Azure Kubernetes Service cluster for running containerized applications.
+- **ingress-nginx**: Manages external access to services in the AKS cluster.
+- **webapps**: Hosts various web applications.
+- **cert-manager**: Manages SSL/TLS certificates for the cluster.
+- **Azure Container Registry**: A managed Docker registry service based on the open-source Docker Registry 2.0.
+- **Public IP**: A static public IP address for the AKS cluster.
+
+## Project Directory Structure
+
+```plaintext
+terraform/
+├── modules/
+│   ├── azure/
+│   │   ├── aks/
+│   │   ├── acr/
+│   │   ├── entra-id/
+│   │   ├── public-ip/
+│   │   ├── subnet/
+│   │   └── vnet/
+│   ├── helm/
+│   │   ├── cert-manager/
+│   │   ├── cert-manager-cluster-issuer/
+│   │   └── nginx-ingress-controller/
+│   └── kubernetes_manifests/
+│   │   └── certificate/
+├── main.tf
+└── README.md
+```
+
 ## Prerequisites
+
+**Azure Account**
+An active Azure account with sufficient permissions to create resources.
+
+**DNS Provider**
+Cloudflare or another DNS provider for managing records to route traffic to the AKS cluster.
 
 **Install Terraform:**
 Download Terraform from the [official website](https://www.terraform.io/downloads). Verify installation:
@@ -97,7 +206,9 @@ cd terraform-aks-setup
 
 ### Create a `terraform.tfvars` File
 
-Create a `terraform.tfvars` file in the root of the repository to define the necessary variables:
+Create a `terraform.tfvars` file in the root of the repository to define the necessary variables. Reference the file `terraform.tfvars.template` for the required variables.
+
+Example `terraform.tfvars` file:
 
 ```hcl
 subscription_id       = ""
@@ -181,6 +292,252 @@ Ensure the cluster is accessible:
 
 ```bash
 kubectl get nodes
+```
+
+## Route Traffic to the Cluster
+
+### Configure DNS
+
+Update your domain's DNS settings to point to the public IP address of the AKS cluster as an A record. You can use Cloudflare or another DNS provider for this.
+
+## Deploying Applications
+
+### Deploying Applications with K8s Manifests
+
+You can deploy applications to the AKS cluster using Kubernetes manifests. Create deployment and service manifests for your applications and apply them using `kubectl`.
+
+Example commands:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
+Example deployment manifest (`k8s/deployment.yaml`):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: webapps
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+    spec:
+      containers:
+      - name: homepage
+        image: <your-container-registry>/homepage:latest
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
+```
+
+Example service manifest (`k8s/service.yaml`):
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+spec:
+  selector:
+    app: webapp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer
+```
+
+Example ingress manifest (`k8s/ingress.yaml`):
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homepage-ingress
+  namespace: webapps
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-dns
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - dev.example.com
+    - example.com
+    secretName: wildcard-example.com-tls
+  rules:
+  - host: dev.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: homepage
+            port:
+              number: 80
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: homepage
+            port:
+              number: 80
+```
+
+Example dockerfile for an NX Next.js app:
+
+```dockerfile
+# Use the official Node.js image as the base image
+FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install dependencies based on the preferred package manager
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+# ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN npm run build
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+# Uncomment the following line in case you want to disable telemetry during runtime.
+# ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app ./
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+
+CMD ["npx", "next", "start"]
+```
+
+Example manual deployment:
+
+```bash
+#!/bin/bash
+
+# Variables
+ACR_NAME="YOURACR"
+ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
+IMAGE_NAME="homepage"
+IMAGE_TAG="latest"
+NAMESPACE="webapps"
+RESOURCE_GROUP="aks-shared"
+AKS_CLUSTER="aks-shared-cluster"
+SKIP_BUILD=false
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --skip-build|-s) SKIP_BUILD=true ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+# Login to Azure Container Registry
+echo "Logging in to Azure Container Registry..."
+az acr login --name $ACR_NAME
+
+if [ "$SKIP_BUILD" = false ]; then
+    # Create a new builder instance
+    docker buildx create --use
+
+    # Pull the latest image to use as cache
+    docker pull ${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG} || true
+
+    # Build and push the multi-platform Docker image with cache
+    echo "Building and pushing the multi-platform Docker image..."
+    docker buildx build --platform linux/amd64,linux/arm64 \
+        --cache-from=type=registry,ref=${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG} \
+        --cache-to=type=inline \
+        -t ${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG} --push .
+else
+    echo "Skipping Docker build and push..."
+fi
+
+# Check the effective outbound IPs for the AKS cluster
+az aks show --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --query "networkProfile.loadBalancerProfile.effectiveOutboundIPs"
+
+# List all public IP addresses in the resource group
+az network public-ip list --resource-group $RESOURCE_GROUP --output table
+
+# List all load balancers in the resource group
+az network lb list --resource-group $RESOURCE_GROUP --output table
+
+# Get AKS credentials
+echo "Fetching AKS credentials..."
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
+
+# Apply the Kubernetes deployment file
+echo "Applying the Kubernetes deployment file..."
+kubectl apply -f k8s/deployment.yaml --namespace=${NAMESPACE}
+kubectl apply -f k8s/service.yaml --namespace=${NAMESPACE}
+kubectl apply -f k8s/ingress.yaml --namespace=${NAMESPACE}
+
+# Check the status of the deployment
+echo "Checking the status of the deployment..."
+kubectl get pods --namespace=${NAMESPACE}
+kubectl get services --namespace=${NAMESPACE}
+kubectl get ingress --namespace=${NAMESPACE}
+
+echo "==Deployment script finished=="
 ```
 
 ## Optional: Store Terraform State Remotely

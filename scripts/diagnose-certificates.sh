@@ -6,7 +6,7 @@ AKS_CLUSTER="aks-shared-cluster"
 NAMESPACE="cert-manager"
 CERT_NAMESPACE="webapps"
 CLUSTER_ISSUER_NAME="letsencrypt-dns"
-DNS_NAME="kota.dog"
+DNS_NAME=""
 CERTIFICATE_NAME="wildcard-${DNS_NAME}-tls"
 MANAGED_RG="MC_${RESOURCE_GROUP}_${AKS_CLUSTER}_eastus"
 
